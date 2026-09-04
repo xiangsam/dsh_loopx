@@ -1,0 +1,20 @@
+# Build and package
+build-temp/
+lib/
+node_modules/
+output/
+
+# LoopX / Codex local runtime
+.loopx/
+.codex/
+
+# Tool caches that do not belong in a plugin checkout
+.venv/
+.python/
+.uv-cache/
+.pnpm-store/
+.bin/
+
+.DS_Store
+*.tmp
+*.log
