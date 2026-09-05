@@ -183,8 +183,11 @@ Remove only LoopX-managed skills:
 
 ```bash
 loopx workflow-skills --uninstall \
-  --skills-dir "${DSH_AGENTS_HOME:-$HOME/.agents}/skills"
+  --skills-dir "${DSH_HOME:-$HOME/Library/Application Support/dsh-desktop/harness}/skills"
 ```
+
+The workflow skills are installed into DSH's own skill root (`$DSH_HOME/skills`), so they are
+scoped to DSH and not shared with another harness.
 
 After DSH has stopped and the plugin has been removed, the isolated CLI copy
 can be deleted without touching LoopX state:

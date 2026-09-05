@@ -15,9 +15,9 @@ import {
   configuredPluginPython,
   MANAGED_LAUNCHER_NAME,
   MANAGED_SITE_PACKAGES_NAME,
-  pluginAgentsHome,
   pluginPythonCandidates,
   pluginRuntimeDir,
+  pluginSkillsDir,
   resolvePluginLoopXCommand,
 } from './managed-runtime.ts'
 import type { LoopXRuntimeOptions } from './managed-runtime.ts'
@@ -304,8 +304,7 @@ async function installCli(
 
 /** Install/upgrade LoopX once when needed, then install and verify DSH skills. */
 export async function initializeLoopX(options: LoopXInitOptions = {}): Promise<LoopXInitSummary> {
-  const resolvedAgentsHome = pluginAgentsHome(options)
-  const skillsDir = resolve(options.skillsDir ?? join(resolvedAgentsHome, 'skills'))
+  const skillsDir = resolve(options.skillsDir ?? pluginSkillsDir(options))
   const runtimeDir = pluginRuntimeDir(options)
   const initialPython = configuredPython(options)
   let effectiveOptions = initialPython === undefined

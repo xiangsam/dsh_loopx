@@ -170,8 +170,11 @@ registry、绑定、skills，或插件管理的 runtime。
 
 ```bash
 loopx workflow-skills --uninstall \
-  --skills-dir "${DSH_AGENTS_HOME:-$HOME/.agents}/skills"
+  --skills-dir "${DSH_HOME:-$HOME/Library/Application Support/dsh-desktop/harness}/skills"
 ```
+
+工作流 skills 装进 DSH 自己的 skill 根目录（`$DSH_HOME/skills`），所以只归 DSH 用，
+不会和别的 harness 共享。
 
 DSH 已停止且插件已移除后，可以单独删掉隔离的 CLI 副本，不动 LoopX 状态：
 

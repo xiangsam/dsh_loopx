@@ -273,7 +273,7 @@ describe('/loopx-init implementation', () => {
     expect(calls.at(-1)).toContain(hostSurface)
   })
 
-  it('uses the DSH Agents home when no explicit skills directory is provided', async () => {
+  it('uses the DSH home skills root when no explicit skills directory is provided', async () => {
     const calls: string[][] = []
     const runner: FileRunner = async (_file, args) => {
       calls.push([...args])
@@ -288,10 +288,32 @@ describe('/loopx-init implementation', () => {
       }
     }
 
-    await initializeLoopX({
-      runner,
-      env: { ...process.env, DSH_AGENTS_HOME: '/fixture/agents-home' },
-    })
+    const env = { ...process.env, DSH_HOME: '/fixture/dsh-home', DSH_AGENTS_HOME: '/fixture/agents-home' }
+    await initializeLoopX({ runner, env })
+
+    const workflowCalls = calls.filter(args => args.includes('workflow-skills'))
+    for (const args of workflowCalls) {
+      expect(args[args.indexOf('--skills-dir') + 1]).toBe('/fixture/dsh-home/skills')
+    }
+  })
+
+  it('falls back to the agents-home skills dir when DSH_HOME is unavailable', async () => {
+    const calls: string[][] = []
+    const runner: FileRunner = async (_file, args) => {
+      calls.push([...args])
+      if (args.at(-1) === '--version') {
+        return { exitCode: 0, stdout: 'loopx 0.5.0\n', stderr: '' }
+      }
+      const operation = args.includes('--install') ? 'install' : 'inspect'
+      return {
+        exitCode: 0,
+        stdout: workflowPayload(operation, false),
+        stderr: '',
+      }
+    }
+
+    const env = { ...process.env, DSH_HOME: '', DSH_AGENTS_HOME: '/fixture/agents-home' }
+    await initializeLoopX({ runner, env })
 
     const workflowCalls = calls.filter(args => args.includes('workflow-skills'))
     for (const args of workflowCalls) {

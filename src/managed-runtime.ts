@@ -44,6 +44,20 @@ export function pluginAgentsHome(options: LoopXRuntimeOptions): string {
   return configured?.trim() ? configured : join(homedir(), '.agents')
 }
 
+/**
+ * Skills are DSH-scoped and must not land in a directory that another harness
+ * (e.g. Codex) might scan. DSH's own skill provider already scans
+ * `$DSH_HOME/skills` (a DSH-specific root), so that is the default. Fall back
+ * to the agents-home skills dir only when DSH_HOME is not supplied.
+ */
+export function pluginSkillsDir(options: LoopXRuntimeOptions): string {
+  const dshHome = options.env?.DSH_HOME ?? process.env.DSH_HOME
+  const configured = dshHome?.trim()
+    ? join(dshHome.trim(), 'skills')
+    : join(pluginAgentsHome(options), 'skills')
+  return configured
+}
+
 export function pluginRuntimeDir(options: LoopXRuntimeOptions): string {
   return resolve(
     options.runtimeDir
