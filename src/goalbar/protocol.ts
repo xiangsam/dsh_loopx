@@ -205,6 +205,11 @@ export interface BoardTaskV1 {
 
 export type BoardNextActionKindV1 = 'agent' | 'user_gate'
 
+export interface BoardQuotaV1 {
+  readonly canRun: boolean
+  readonly waitingOnUser: boolean
+}
+
 export interface BoardGoalChoiceV1 {
   readonly goalId: string
   readonly title: string
@@ -225,6 +230,7 @@ export interface BoardDataSnapshotV1 {
   readonly domain: string | null
   readonly laneCount: number | null
   readonly bindingCount: number | null
+  readonly quota: BoardQuotaV1 | null
 }
 
 export type GoalBarBoardDataResultV1 =
@@ -741,6 +747,7 @@ export function decodeBoardDataSnapshotV1(
     'domain',
     'laneCount',
     'bindingCount',
+    'quota',
   ])
   if (input === undefined || input.sessionId !== sessionId || !isGoalBarSessionId(input.sessionId)) {
     return undefined
@@ -749,6 +756,16 @@ export function decodeBoardDataSnapshotV1(
   if (input.domain !== null && !isBoardDomain(input.domain)) return undefined
   if (input.laneCount !== null && !isBoardCount(input.laneCount)) return undefined
   if (input.bindingCount !== null && !isBoardCount(input.bindingCount)) return undefined
+  let quota: BoardQuotaV1 | null
+  if (input.quota === null) {
+    quota = null
+  } else {
+    const raw = exactRecord(input.quota, ['canRun', 'waitingOnUser'])
+    if (raw === undefined || typeof raw.canRun !== 'boolean' || typeof raw.waitingOnUser !== 'boolean') {
+      return undefined
+    }
+    quota = { canRun: raw.canRun, waitingOnUser: raw.waitingOnUser }
+  }
   let progress: GoalBarProgressV1 | null
   if (input.progress === null) {
     progress = null
@@ -795,7 +812,8 @@ export function decodeBoardDataSnapshotV1(
       || input.goalTitle !== null
       || input.domain !== null
       || input.laneCount !== null
-      || input.bindingCount !== null) {
+      || input.bindingCount !== null
+      || input.quota !== null) {
       return undefined
     }
     return {
@@ -812,6 +830,7 @@ export function decodeBoardDataSnapshotV1(
       domain: null,
       laneCount: null,
       bindingCount: null,
+      quota: null,
     }
   }
   if (!isGoalBarGoalId(input.goalId)
@@ -834,6 +853,7 @@ export function decodeBoardDataSnapshotV1(
     domain: input.domain,
     laneCount: input.laneCount,
     bindingCount: input.bindingCount,
+    quota,
   }
 }
 

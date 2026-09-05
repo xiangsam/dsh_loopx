@@ -15,6 +15,7 @@ import {
 import type {
   BoardDataSnapshotV1,
   BoardGoalChoiceV1,
+  BoardQuotaV1,
   BoardTaskStatusV1,
   BoardTaskV1,
   GoalBarActivationV1,
@@ -720,6 +721,7 @@ const emptyBoard = (sessionId: string): BoardDataSnapshotV1 => ({
   domain: null,
   laneCount: null,
   bindingCount: null,
+  quota: null,
 })
 
 export function decodeUniqueActiveProjectGoal(
@@ -858,6 +860,36 @@ async function readGoalHeading(
   }
 }
 
+/** Best-effort quota status: a missing/failed read degrades to null, never a board fault. */
+async function readBoardQuota(
+  options: GoalBarCliReadOptions,
+  goalId: string,
+  loopxAgentId: string,
+): Promise<BoardQuotaV1 | null> {
+  try {
+    const result = await executeJsonRead(options, [
+      '--registry', GOALBAR_PROJECT_REGISTRY,
+      '--format', 'json',
+      'quota', 'should-run',
+      '--goal-id', goalId,
+      '--agent-id', loopxAgentId,
+      '--runtime-profile', 'generic_cli',
+    ])
+    const payload = result.payload
+    if (result.exitCode !== 0
+      || payload.ok !== true
+      || typeof payload.should_run !== 'boolean') {
+      return null
+    }
+    return {
+      canRun: payload.should_run,
+      waitingOnUser: payload.requires_user_action === true,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function readBoardProjection(
   options: GoalBarCliReadOptions,
   sessionId: string,
@@ -905,11 +937,12 @@ export async function readBoardProjection(
     }
   }
 
-  const [activation, agentResult, userResult, heading] = await Promise.all([
+  const [activation, agentResult, userResult, heading, quota] = await Promise.all([
     readGoalBarActivation(options, goalId),
     listTodos('agent'),
     listTodos('user'),
     readGoalHeading(options, goalId),
+    readBoardQuota(options, goalId, loopxAgentId),
   ])
   if (activation.kind === 'fault') return activation
   if ('kind' in agentResult && agentResult.kind === 'fault') return agentResult
@@ -956,6 +989,7 @@ export async function readBoardProjection(
       nextActionTitle: nextOpen?.title ?? null,
       nextActionKind,
       ...heading,
+      quota,
     },
   }
 }

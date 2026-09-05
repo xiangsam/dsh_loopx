@@ -201,6 +201,7 @@ describe('GoalBar boardData V2', () => {
       domain: 'project-goal-control-plane',
       laneCount: 1,
       bindingCount: 1,
+      quota: { canRun: true, waitingOnUser: false },
     }
     expect(decodeGoalBarResponseV1(boardRequest, response(boardRequest, {
       kind: 'ready', data,

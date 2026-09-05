@@ -1191,6 +1191,7 @@ describe('GoalBar boardData', () => {
         domain: null,
         laneCount: null,
         bindingCount: null,
+        quota: null,
       },
     })
     await host.service.dispose()
@@ -1225,6 +1226,7 @@ describe('GoalBar boardData', () => {
         domain: null,
         laneCount: null,
         bindingCount: null,
+        quota: null,
       },
     })
     await host.service.dispose()

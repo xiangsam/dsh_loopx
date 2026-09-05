@@ -116,6 +116,14 @@ export function LoopXBoardView({
   const activationLabel = data?.goalActivation === 'stopped'
     ? t('board.activation.stopped')
     : t('board.activation.active')
+  const quota = data?.quota ?? null
+  const quotaState = quota === null
+    ? null
+    : quota.waitingOnUser
+      ? 'user'
+      : quota.canRun
+        ? 'ready'
+        : 'waiting'
 
   return (
     <div className={styles.panel} aria-label={t('board.label')} aria-busy={board.loading || board.pending}>
@@ -197,6 +205,19 @@ export function LoopXBoardView({
                 >
                   {live ? t('board.mode.drive') : t('board.mode.watch')}
                 </span>
+                {live && quotaState !== null && (
+                  <span
+                    className={styles.quotaBadge}
+                    data-state={quotaState}
+                    role="status"
+                  >
+                    {quotaState === 'user'
+                      ? t('board.quota.user')
+                      : quotaState === 'ready'
+                        ? t('board.quota.ready')
+                        : t('board.quota.waiting')}
+                  </span>
+                )}
               </div>
               <h2 className={styles.title}>{data.goalTitle ?? data.goalId}</h2>
               <div className={styles.goalMeta}>
