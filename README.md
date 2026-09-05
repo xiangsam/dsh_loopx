@@ -3,13 +3,15 @@
 `dsh-loopx-plugin` is the DeepSeek Harness (DSH) plugin that connects a project
 to [LoopX](https://github.com/huangruiteng/loopx). It does not replace LoopX.
 
-After it is installed, you can start durable LoopX work from chat with
-`/loopx <task>`, keep the same Session running when LoopX quota allows, and
-see a compact GoalBar on that bound Session. LoopX remains the only authority
-for Goal, Agent, Todo, quota, and thread-binding data.
+After it is installed, start durable LoopX work with `/loopx <task>` in the
+chat that should drive it. That bind-this-chat step is opt-in: other DSH
+Sessions in the same folder stay ordinary chats, with no LoopX Goal tab and
+no GoalBar. Only the Session that `/loopx` bound shows a compact GoalBar.
+LoopX remains the only authority for Goal, Agent, Todo, quota, and
+thread-binding data.
 
-Chinese: [README.zh.md](README.zh.md). Session vs Driver vs the embedded
-task panel: [docs/session-goal-surface.md](docs/session-goal-surface.md).
+Chinese: [README.zh.md](README.zh.md).
+How GoalBar attaches: [docs/session-goal-surface.md](docs/session-goal-surface.md).
 
 Current checkout version: **0.1.1-beta.6**. The last published prebuilt
 tarball is **0.1.1-beta.4**. Install this checkout with `./install.sh` if you
