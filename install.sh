@@ -129,6 +129,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   cat <<EOF
 install: [dry-run] plan for $PACKAGE_NAME@$PACKAGE_VERSION
   - pnpm install --frozen-lockfile --ignore-scripts   ($SCRIPT_DIR)
+  - dsh plugin --profile $PROFILE_NAME remove $PACKAGE_NAME  (ignore-if-missing)
   - dsh plugin --profile $PROFILE_NAME add $tarball --ignore-scripts
   - verify Host/Client loader rows in the $PROFILE_NAME profile dump
   - python check: $([ "$python_ok" -eq 1 ] && echo 'Python 3.11+ found' || echo 'WARNING: no Python 3.11+')
@@ -148,6 +149,10 @@ pnpm --dir "$SCRIPT_DIR" pack --out "$tarball"
 [[ -s "$tarball" ]] || { echo "install: expected tarball was not created" >&2; exit 1; }
 
 step "installing into the DSH $PROFILE_NAME profile"
+# Remove any prior install of the same package first. `dsh plugin add` skips
+# re-installing when the version is unchanged, so a same-version source rebuild
+# would otherwise leave the stale artifact in place.
+"$dsh_bin" plugin --profile "$PROFILE_NAME" remove "$PACKAGE_NAME" >/dev/null 2>&1 || true
 "$dsh_bin" plugin --profile "$PROFILE_NAME" add "$tarball" --ignore-scripts
 profile_dump="$("$dsh_bin" --profile "$PROFILE_NAME" --dump-config)" || {
   echo "install: DSH profile $PROFILE_NAME could not be read back" >&2
