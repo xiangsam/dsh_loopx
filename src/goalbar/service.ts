@@ -17,8 +17,10 @@ import type {
   GoalBarWatchService,
 } from './events.ts'
 import {
+  GOALBAR_HOST_SURFACE,
   GOALBAR_PROJECT_REGISTRY,
   computeGoalBarSourceRevision,
+  publicSafeAgentIdForSession,
   readBoardProjection,
   readGoalBarActivation,
   readGoalBarBinding,
@@ -29,7 +31,10 @@ import {
   GOALBAR_RESPONSE_VERSION,
 } from './protocol.ts'
 import type {
+  GoalBarActionRejectionCode,
   GoalBarActionResultV1,
+  GoalBarDeleteResultV1,
+  GoalBarJoinResultV1,
   GoalBarReadFaultCode,
   GoalBarReadResultV1,
   GoalBarRequestV1,
@@ -47,7 +52,7 @@ const MAX_ACTION_TIMEOUT_MS = 60_000
 const DEFAULT_ACTION_MAX_OUTPUT_BYTES = 1024 * 1024
 const MAX_ACTION_MAX_OUTPUT_BYTES = 2 * 1024 * 1024
 
-type ActionOp = 'start' | 'pause'
+type ActionOp = 'start' | 'pause' | 'unbind'
 
 interface LiveCapture extends GoalBarSessionCapture {
   readonly sessionId: string
@@ -276,6 +281,8 @@ export class GoalBarService implements GoalBarServiceHandle {
       if (request.op === 'read') return await this.readResponse(request, signal)
       if (request.op === 'watch') return await this.watchResponse(request, signal)
       if (request.op === 'boardData') return await this.boardDataResponse(request, signal)
+      if (request.op === 'join') return await this.joinResponse(request, signal)
+      if (request.op === 'deleteGoal') return await this.deleteGoalResponse(request, signal)
       return await this.actionResponse(request, signal)
     } catch {
       return fixedGoalBarFailureResponseV1(request)
@@ -543,11 +550,211 @@ export class GoalBarService implements GoalBarServiceHandle {
         },
       }
     }
+    if (projection.kind === 'choose') {
+      return {
+        v: GOALBAR_RESPONSE_VERSION,
+        op: 'boardData',
+        sessionId: request.sessionId,
+        result: { kind: 'choose', goals: projection.goals },
+      }
+    }
     return {
       v: GOALBAR_RESPONSE_VERSION,
       op: 'boardData',
       sessionId: request.sessionId,
       result: { kind: 'ready', data: projection.data },
+    }
+  }
+
+  private async joinResponse(
+    request: Extract<GoalBarRequestV1, { readonly op: 'join' }>,
+    signal: AbortSignal,
+  ): Promise<Extract<GoalBarResponseV1, { readonly op: 'join' }>> {
+    const capture = this.capture(request.sessionId)
+    if (capture === undefined) {
+      return {
+        v: GOALBAR_RESPONSE_VERSION,
+        op: 'join',
+        sessionId: request.sessionId,
+        result: { kind: 'rejected', code: 'binding_validation_failed' },
+      }
+    }
+    const operationSignal = this.combinedSignal(signal)
+    let command: LoopXCommand
+    try {
+      command = await this.commandResolver(operationSignal)
+    } catch {
+      return {
+        v: GOALBAR_RESPONSE_VERSION,
+        op: 'join',
+        sessionId: request.sessionId,
+        result: { kind: 'rejected', code: 'binding_validation_failed' },
+      }
+    }
+    // Pick the agent this Session will drive as. Fresh mode also registers
+    // a --require-new worker so a new chat never silently reuses a lane.
+    const resolveAgent = async (): Promise<string> => {
+      if (request.mode === 'takeover') return request.loopxAgentId
+      return publicSafeAgentIdForSession(String(capture.agent.id))
+    }
+    const agentId = await resolveAgent()
+    try {
+      // Register the worker first (idempotent for takeover). Fresh mode uses
+      // --require-new so a new chat never silently reuses an existing lane.
+      const registerArgs = [
+        '--registry', GOALBAR_PROJECT_REGISTRY,
+        '--format', 'json',
+        'register-agent',
+        '--goal-id', request.goalId,
+        '--agent-id', agentId,
+        ...(request.mode === 'fresh' ? ['--require-new'] : []),
+        '--execute',
+      ]
+      await runJsonMutationCommand(command, registerArgs, {
+        runner: this.runner,
+        cwd: capture.cwd,
+        env: this.env,
+        timeoutMs: this.actionTimeoutMs,
+        maxOutputBytes: this.actionMaxOutputBytes,
+        validate: payload => {
+          const record = payload as { readonly ok?: unknown; readonly written?: unknown }
+          return record.ok === true && record.written === true
+        },
+      })
+    } catch {
+      return {
+        v: GOALBAR_RESPONSE_VERSION,
+        op: 'join',
+        sessionId: request.sessionId,
+        result: { kind: 'rejected', code: 'binding_validation_failed' },
+      }
+    }
+    try {
+      await runJsonMutationCommand(command, [
+        '--registry', GOALBAR_PROJECT_REGISTRY,
+        '--format', 'json',
+        'bind-agent-thread',
+        '--goal-id', request.goalId,
+        '--thread-id', request.sessionId,
+        '--host-surface', GOALBAR_HOST_SURFACE,
+        '--agent-id', agentId,
+        '--execute',
+      ], {
+        runner: this.runner,
+        cwd: capture.cwd,
+        env: this.env,
+        timeoutMs: this.actionTimeoutMs,
+        maxOutputBytes: this.actionMaxOutputBytes,
+        validate: payload => {
+          const record = payload as { readonly ok?: unknown; readonly written?: unknown }
+          return record.ok === true && record.written === true
+        },
+      })
+    } catch {
+      return {
+        v: GOALBAR_RESPONSE_VERSION,
+        op: 'join',
+        sessionId: request.sessionId,
+        result: { kind: 'unknown', code: 'operation_result_unknown' },
+      }
+    }
+    return {
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'join',
+      sessionId: request.sessionId,
+      result: { kind: 'succeeded' } as GoalBarJoinResultV1,
+    }
+  }
+
+  private async deleteGoalResponse(
+    request: Extract<GoalBarRequestV1, { readonly op: 'deleteGoal' }>,
+    signal: AbortSignal,
+  ): Promise<Extract<GoalBarResponseV1, { readonly op: 'deleteGoal' }>> {
+    const capture = this.capture(request.sessionId)
+    if (capture === undefined) {
+      return this.deleteGoalReject(request.sessionId, 'binding_validation_failed')
+    }
+    const operationSignal = this.combinedSignal(signal)
+    let command: LoopXCommand
+    try {
+      command = await this.commandResolver(operationSignal)
+    } catch {
+      return this.deleteGoalReject(request.sessionId, 'binding_validation_failed')
+    }
+    // Only the currently-bound driver Session may delete its own Goal. Re-read
+    // the authoritative binding and require an exact match before mutating.
+    const cliOptions = {
+      command,
+      cwd: capture.cwd,
+      runner: this.runner,
+      signal: operationSignal,
+      env: this.env,
+      retryDelaysMs: this.retryDelaysMs,
+    }
+    const binding = await readGoalBarBinding(cliOptions, request.sessionId)
+    if (binding.kind !== 'bound'
+      || binding.goalId !== request.expected.goalId
+      || binding.loopxAgentId !== request.expected.loopxAgentId) {
+      return this.deleteGoalReject(request.sessionId, 'binding_validation_failed')
+    }
+    try {
+      await runJsonMutationCommand(command, [
+        '--registry', GOALBAR_PROJECT_REGISTRY,
+        '--format', 'json',
+        'uninstall-project',
+        '--goal-id', binding.goalId,
+        '--archive-state',
+        '--remove-empty-registry',
+        '--execute',
+      ], {
+        runner: this.runner,
+        cwd: capture.cwd,
+        env: this.env,
+        timeoutMs: this.actionTimeoutMs,
+        maxOutputBytes: this.actionMaxOutputBytes,
+        validate: payload => {
+          const record = payload as { readonly ok?: unknown; readonly wrote_local_registry?: unknown }
+          return record.ok === true
+        },
+      })
+      await runJsonMutationCommand(command, [
+        '--registry', GOALBAR_PROJECT_REGISTRY,
+        '--format', 'json',
+        'archive-runtime',
+        '--goal-id', binding.goalId,
+        '--allow-registered',
+        '--execute',
+      ], {
+        runner: this.runner,
+        cwd: capture.cwd,
+        env: this.env,
+        timeoutMs: this.actionTimeoutMs,
+        maxOutputBytes: this.actionMaxOutputBytes,
+        validate: payload => {
+          const record = payload as { readonly ok?: unknown; readonly archived?: unknown }
+          return record.ok === true
+        },
+      })
+    } catch {
+      return this.deleteGoalReject(request.sessionId, 'not_actionable')
+    }
+    return {
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'deleteGoal',
+      sessionId: request.sessionId,
+      result: { kind: 'succeeded' } as GoalBarDeleteResultV1,
+    }
+  }
+
+  private deleteGoalReject(
+    sessionId: string,
+    code: GoalBarActionRejectionCode,
+  ): Extract<GoalBarResponseV1, { readonly op: 'deleteGoal' }> {
+    return {
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'deleteGoal',
+      sessionId,
+      result: { kind: 'rejected', code } as GoalBarDeleteResultV1,
     }
   }
 
@@ -722,10 +929,12 @@ export class GoalBarService implements GoalBarServiceHandle {
     if (validationSignal.aborted || !this.captureIsCurrent(capture)) {
       return { kind: 'rejected', code: 'binding_validation_failed' }
     }
-    const actionable = activation.kind === 'value'
-      && (request.op === 'start'
-        ? activation.goalActivation === 'stopped' && capture.agent.status === 'idle'
-        : activation.goalActivation === 'active')
+    const actionable = request.op === 'unbind'
+      ? true
+      : activation.kind === 'value'
+        && (request.op === 'start'
+          ? activation.goalActivation === 'stopped' && capture.agent.status === 'idle'
+          : activation.goalActivation === 'active')
     if (!actionable) return { kind: 'rejected', code: 'not_actionable' }
 
     // Last identity/status fence before the child is synchronously launched.
@@ -734,29 +943,52 @@ export class GoalBarService implements GoalBarServiceHandle {
       || (request.op === 'start' && capture.agent.status !== 'idle')) {
       return { kind: 'rejected', code: 'binding_validation_failed' }
     }
-    const targetState = request.op === 'start' ? 'active' : 'stopped'
-    const operation = request.op === 'start' ? 'resume' : 'stop'
     let verified = false
     try {
-      await runJsonMutationCommand(command, [
-        '--registry', GOALBAR_PROJECT_REGISTRY,
-        '--format', 'json',
-        'goal-lifecycle',
-        '--goal-id', binding.goalId,
-        '--operation', operation,
-        '--execute',
-      ], {
-        runner: this.runner,
-        cwd: capture.cwd,
-        env: this.env,
-        timeoutMs: this.actionTimeoutMs,
-        maxOutputBytes: this.actionMaxOutputBytes,
-        validate: payload => decodeGoalBarLifecycleExecutionV1(
-          payload,
-          binding.goalId,
-          targetState,
-        ),
-      })
+      if (request.op === 'unbind') {
+        await runJsonMutationCommand(command, [
+          '--registry', GOALBAR_PROJECT_REGISTRY,
+          '--format', 'json',
+          'unbind-agent-thread',
+          '--goal-id', binding.goalId,
+          '--thread-id', request.sessionId,
+          '--host-surface', GOALBAR_HOST_SURFACE,
+          '--agent-id', binding.loopxAgentId,
+          '--execute',
+        ], {
+          runner: this.runner,
+          cwd: capture.cwd,
+          env: this.env,
+          timeoutMs: this.actionTimeoutMs,
+          maxOutputBytes: this.actionMaxOutputBytes,
+          validate: payload => {
+            const record = payload as { readonly ok?: unknown; readonly written?: unknown }
+            return record.ok === true && record.written === true
+          },
+        })
+      } else {
+        const targetState = request.op === 'start' ? 'active' : 'stopped'
+        const operation = request.op === 'start' ? 'resume' : 'stop'
+        await runJsonMutationCommand(command, [
+          '--registry', GOALBAR_PROJECT_REGISTRY,
+          '--format', 'json',
+          'goal-lifecycle',
+          '--goal-id', binding.goalId,
+          '--operation', operation,
+          '--execute',
+        ], {
+          runner: this.runner,
+          cwd: capture.cwd,
+          env: this.env,
+          timeoutMs: this.actionTimeoutMs,
+          maxOutputBytes: this.actionMaxOutputBytes,
+          validate: payload => decodeGoalBarLifecycleExecutionV1(
+            payload,
+            binding.goalId,
+            targetState,
+          ),
+        })
+      }
       verified = true
     } catch {
       return { kind: 'unknown', code: 'operation_result_unknown' }

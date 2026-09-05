@@ -5,13 +5,14 @@ to [LoopX](https://github.com/huangruiteng/loopx). It does not replace LoopX.
 
 After it is installed, start durable LoopX work with `/loopx <task>` in the
 chat that should drive it. That bind-this-chat step is opt-in: other DSH
-Sessions in the same folder stay ordinary chats, with no LoopX Goal tab and
-no GoalBar. Only the Session that `/loopx` bound shows a compact GoalBar.
-LoopX remains the only authority for Goal, Agent, Todo, quota, and
-thread-binding data.
+Sessions in the same folder stay ordinary chats until they also `/loopx`.
+The bound Session shows a compact GoalBar and a LoopX task panel. A new
+unbound chat must not take over another chat's worker. LoopX remains the
+only authority for Goal, Agent, Todo, quota, and thread-binding data.
 
 Chinese: [README.zh.md](README.zh.md).
 How GoalBar attaches: [docs/session-goal-surface.md](docs/session-goal-surface.md).
+Design rationale (model + single-agent rule): [docs/design-philosophy.md](docs/design-philosophy.md).
 
 Current checkout version: **0.1.1-beta.6**. The last published prebuilt
 tarball is **0.1.1-beta.4**. Install this checkout with `./install.sh` if you
@@ -25,7 +26,23 @@ One package, three DSH Loader rows:
 | --- | --- | --- |
 | **Init** | Installs or upgrades a private LoopX CLI and the LoopX workflow skills, then verifies the DSH-native `loopx` entry before DSH finishes loading the plugin. | Automatically on DSH start. `/loopx-init` is only a repair command. |
 | **Driver** | After *this exact Session* successfully invokes the exact `loopx` skill, asks LoopX whether another turn may run and queues that heartbeat into the live DSH Agent. | Only after typed `loopx` skill evidence in this Session. Installing the plugin is not enough. |
-| **GoalBar** | A compact LoopX status row between DSH's native GoalBar and Queue. It reads LoopX CLI; it does not clone the LoopX dashboard or add a tab to every Session. | Hidden until *this exact Session* is bound by `/loopx`. Other chats in the same folder stay ordinary DSH sessions. |
+| **GoalBar + task panel** | A compact status row on the composer, plus a LoopX `conversation.view` panel with a progress bar, a count summary, grouped open work, and the next step. Both read LoopX CLI; they do not clone the dashboard. | GoalBar is hidden until *this exact Session* is bound. The panel can show a unique project Goal as watch-only. Start/Pause and Leave this chat require this Session to be bound. |
+
+### Task panel
+
+For the Goal visible to this Session, the panel shows:
+
+- **Goal header** — activation (Active/Paused) and drive/watch mode, the Goal id,
+  a progress bar with `done / total` and a percentage, and a summary of open,
+  done, and needs-you counts.
+- **Open work** — grouped by status: *Needs you*, *In progress*, *Waiting*,
+  *Watching*, each with a count. Items that need you are highlighted.
+- **Next step** — the next action (agent todo or a user gate), with a shortcut
+  back to chat.
+
+A Session that is not bound and finds **no active Goal** in the project shows a
+clean "not bound" prompt instead of an error, so a fresh workspace is not a
+fault.
 
 The plugin does **not** expose LoopX model tools, a binding sidecar, or its own
 Goal/Todo store. Models use the installed LoopX skills and call the LoopX CLI
@@ -101,10 +118,30 @@ loopx --registry .loopx/registry.json --format json \
 `status=bound` with one exact Goal/Agent pair admits the GoalBar row.
 Missing or ambiguous results fail closed and render nothing.
 
-LoopX Goals live in the project. DSH Sessions are independent tasks. Only a
-Session that invoked `/loopx` and bound this thread shows the GoalBar. Other
-chats in the same folder are unaffected. The Driver continues a quota-admitted
-agent todo and will not skip a `user_gate`.
+To **leave this chat** (unbind, keep the Goal):
+
+```bash
+loopx --registry .loopx/registry.json unbind-agent-thread \
+  --goal-id <goal-id> \
+  --thread-id "$DSH_SESSION_ID" \
+  --host-surface deepseek-harness-native \
+  --agent-id <agent-id> \
+  --execute
+```
+
+The task panel's **Leave this chat** button runs the same command for this
+Session. To stop automatic turns without unbinding:
+
+```bash
+loopx goal-lifecycle --goal-id <goal-id> --operation stop --execute
+```
+
+A **new** DSH chat on an existing Goal should register its own worker
+(`loopx start-goal --new-peer ...`). Do not pass another Session's
+`--agent-id` unless you explicitly want takeover.
+
+LoopX Goals live in the project. DSH Sessions are independent tasks. The
+Driver continues a quota-admitted agent todo and will not skip a `user_gate`.
 
 ## Commands you will actually use
 

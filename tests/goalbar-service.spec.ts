@@ -1184,6 +1184,36 @@ describe('GoalBar boardData', () => {
     await host.service.dispose()
   })
 
+  it('treats an unprovisioned project registry as no active Goal, not a fault', async () => {
+    const host = harness()
+    host.bindingMode = 'missing'
+    host.registryPayload = {
+      ok: false,
+      registry: '.loopx/registry.json',
+      error: 'registry file does not exist',
+    }
+    const response = await host.service.handle({
+      v: 'loopx_goalbar_request_v2',
+      op: 'boardData',
+      sessionId,
+    }, new AbortController().signal)
+    expect(response.result).toEqual({
+      kind: 'ready',
+      data: {
+        sessionId,
+        goalId: null,
+        loopxAgentId: null,
+        sessionBound: false,
+        goalActivation: null,
+        progress: null,
+        tasks: [],
+        nextActionTitle: null,
+        nextActionKind: null,
+      },
+    })
+    await host.service.dispose()
+  })
+
   it('surfaces a user gate as the next action ahead of agent todos', async () => {
     const host = harness()
     host.userListPayload = userGateTodoPayload()

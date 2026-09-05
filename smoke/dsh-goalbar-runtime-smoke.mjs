@@ -41,6 +41,7 @@ const packedStaticEntries = new Set([
   'package/LICENSE',
   'package/NOTICE',
   'package/README.md',
+  'package/README.zh.md',
   'package/cordis.patch.yml',
   'package/lib/client.js',
   'package/lib/driver.js',
@@ -711,7 +712,7 @@ async function materializeServedClient(source) {
       slots: {
         inject(name, install) {
           assert.ok(
-            name === 'conversation.input.dock',
+            name === 'conversation.input.dock' || name === 'conversation.view',
             `unexpected slot ${name}`,
           )
           const dispose = install()
@@ -728,9 +729,9 @@ async function materializeServedClient(source) {
     client.apply(ctx)
     const config = slots.get('loopx-goal')
     assert.equal(config.order, 15)
-    assert.equal(slots.has('loopx-board'), false)
+    assert.equal(slots.has('loopx-board'), true)
     assert.deepEqual([...slots].sort((a, b) => a[1].order - b[1].order).map(([id]) => id), [
-      'goal', 'loopx-goal', 'queue',
+      'goal', 'loopx-goal', 'queue', 'loopx-board',
     ])
     assert.equal(config.inject('session-one').rpcSessionId, 'session-one')
     assert.equal(config.inject('session-two').rpcSessionId, 'session-two')
@@ -741,13 +742,13 @@ async function materializeServedClient(source) {
   }
 
   const first = applyClient()
-  assert.equal(styles.length, 1)
+  assert.equal(styles.length, 2)
   first.dispose()
   assert.deepEqual([...first.slots.keys()], ['goal', 'queue'])
   assert.equal(styles.length, 0)
   assert.equal(await modules.import(packageId, '', {}), client)
   const reapplied = applyClient()
-  assert.equal(styles.length, 1, 'cached Client reapply did not restore CSS')
+  assert.equal(styles.length, 2, 'cached Client reapply did not restore CSS')
   reapplied.dispose()
   assert.equal(styles.length, 0)
 }

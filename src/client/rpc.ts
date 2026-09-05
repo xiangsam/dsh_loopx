@@ -39,6 +39,21 @@ export type GoalBarPauseResponseV1 = GoalBarResponseFor<Extract<
   { readonly op: 'pause' }
 >>
 
+export type GoalBarUnbindResponseV1 = GoalBarResponseFor<Extract<
+  GoalBarRequestV1,
+  { readonly op: 'unbind' }
+>>
+
+export type GoalBarJoinResponseV1 = GoalBarResponseFor<Extract<
+  GoalBarRequestV1,
+  { readonly op: 'join' }
+>>
+
+export type GoalBarDeleteResponseV1 = GoalBarResponseFor<Extract<
+  GoalBarRequestV1,
+  { readonly op: 'deleteGoal' }
+>>
+
 export type GoalBarBoardDataResponseV1 = GoalBarResponseFor<Extract<
   GoalBarRequestV1,
   { readonly op: 'boardData' }
@@ -72,6 +87,23 @@ export interface GoalBarRpc {
     expected: GoalBarExpectedBindingV1,
     signal: AbortSignal,
   ): Promise<GoalBarRpcOutcome<GoalBarPauseResponseV1>>
+  unbind(
+    sessionId: string,
+    expected: GoalBarExpectedBindingV1,
+    signal: AbortSignal,
+  ): Promise<GoalBarRpcOutcome<GoalBarUnbindResponseV1>>
+  join(
+    sessionId: string,
+    goalId: string,
+    loopxAgentId: string,
+    mode: 'fresh' | 'takeover',
+    signal: AbortSignal,
+  ): Promise<GoalBarRpcOutcome<GoalBarJoinResponseV1>>
+  deleteGoal(
+    sessionId: string,
+    expected: GoalBarExpectedBindingV1,
+    signal: AbortSignal,
+  ): Promise<GoalBarRpcOutcome<GoalBarDeleteResponseV1>>
   boardData(
     sessionId: string,
     signal: AbortSignal,
@@ -138,6 +170,35 @@ export function createGoalBarRpc(caller: ConnectionRpcCaller): GoalBarRpc {
       const request = {
         v: GOALBAR_REQUEST_VERSION,
         op: 'pause',
+        sessionId,
+        expected,
+      } as const
+      return callGoalBar(caller, request, signal)
+    },
+    unbind(sessionId, expected, signal) {
+      const request = {
+        v: GOALBAR_REQUEST_VERSION,
+        op: 'unbind',
+        sessionId,
+        expected,
+      } as const
+      return callGoalBar(caller, request, signal)
+    },
+    join(sessionId, goalId, loopxAgentId, mode, signal) {
+      const request = {
+        v: GOALBAR_REQUEST_VERSION,
+        op: 'join',
+        sessionId,
+        goalId,
+        loopxAgentId,
+        mode,
+      } as const
+      return callGoalBar(caller, request, signal)
+    },
+    deleteGoal(sessionId, expected, signal) {
+      const request = {
+        v: GOALBAR_REQUEST_VERSION,
+        op: 'deleteGoal',
         sessionId,
         expected,
       } as const

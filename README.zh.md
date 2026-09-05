@@ -4,12 +4,13 @@
 DeepSeek Harness（DSH）的插件。它不替代 LoopX。
 
 装好之后，在**要推进工作的那条对话**里用 `/loopx <任务>` 启动。这是按会话
-选择加入：同一文件夹里的其他 DSH 聊天仍是普通会话，没有 LoopX Goal 标签，
-也没有 GoalBar。只有被 `/loopx` 绑定的 Session 才会显示一条紧凑 GoalBar。
-Goal、Agent、Todo、quota、线程绑定的权威数据仍然只在 LoopX 里。
+选择加入：同一文件夹里的其他聊天仍是普通会话，直到它们自己也 `/loopx`。
+绑定后的会话会显示紧凑 GoalBar 和 LoopX 任务面板。新开的未绑定聊天不得接管
+别的对话的工人。Goal、Agent、Todo、quota、线程绑定的权威数据仍然只在 LoopX 里。
 
 English: [README.md](README.md)。
 GoalBar 怎么挂到对话上：[docs/session-goal-surface.zh.md](docs/session-goal-surface.zh.md)。
+设计说明（模型 + 单一 Agent 规则）：[docs/design-philosophy.zh.md](docs/design-philosophy.zh.md)。
 
 当前源码版本：**0.1.1-beta.6**。已经发布的预构建包是 **0.1.1-beta.4**。
 如果要安装和 `package.json` 一致的源码，请在本仓库根目录运行 `./install.sh`。
@@ -22,7 +23,20 @@ GoalBar 怎么挂到对话上：[docs/session-goal-surface.zh.md](docs/session-g
 | --- | --- | --- |
 | **Init（初始化）** | 安装或升级一份隔离的 LoopX CLI，以及 LoopX 工作流 skills，并在 DSH 加载完成前校验 DSH 原生 `loopx` 入口。 | DSH 启动时自动执行。`/loopx-init` 只是失败后的修复命令。 |
 | **Driver（同会话驱动）** | 仅当**当前这个 Session** 成功调用了名为 `loopx` 的 skill 之后，才会向 LoopX 询问下一轮是否可跑，并把 heartbeat 排进这个活着的 DSH Agent。 | 必须先有本 Session 里的 typed `loopx` skill 证据。只装插件不够。 |
-| **GoalBar** | 在 DSH 原生 GoalBar 和 Queue 之间放一条紧凑 LoopX 状态栏。只读 CLI，不克隆仪表盘，也不给每条会话加标签。 | 仅当**当前 Session** 被 `/loopx` 绑定后才显示。同一文件夹里的其他聊天仍是普通 DSH 会话。 |
+| **GoalBar + 任务面板** | 输入框旁的紧凑状态条，以及 LoopX `conversation.view` 任务面板（带进度条、计数汇总、按状态分组的未完成工作和下一步）。只读 CLI，不克隆仪表盘。 | GoalBar 仅在**当前 Session** 绑定后显示。面板可以旁观项目里唯一的 Goal。启动/暂停和「离开此对话」需要本 Session 已绑定。 |
+
+### 任务面板
+
+对本 Session 可见的 Goal，面板会展示：
+
+- **目标头部** — 激活状态（已激活/已暂停）和驱动/旁观模式、Goal id、
+  进度条（`done / total` 加百分比），以及未完成、已完成、需要你的数量汇总。
+- **未完成工作** — 按状态分组：*需要你*、*进行中*、*等待中*、*持续观察*，各自带计数。
+  需要你的项会高亮。
+- **下一步** — 下一项动作（agent todo 或 user 门槛），带回到对话的快捷按钮。
+
+未绑定且项目中**无活跃 Goal** 的 Session 会显示干净的「未绑定」提示而不是报错，
+新工作区不再被当成故障。
 
 插件**不会**向模型暴露 LoopX tools，也不会自己存 Goal/Todo。模型使用安装好的
 LoopX skills，并直接调用 LoopX CLI。
@@ -94,9 +108,29 @@ loopx --registry .loopx/registry.json --format json \
 `status=bound` 且只有一对精确的 Goal/Agent，GoalBar 才会显示。缺失或有歧义时
 失败关闭，不渲染。
 
-LoopX 的 Goal 挂在项目上。DSH 的 Session 是独立任务。只有调用过 `/loopx` 并
-绑定了本线程的会话才会显示 GoalBar；同一文件夹里的其他聊天不受影响。Driver
-只会推进 quota 允许的 agent todo，并且不会跳过 `user_gate`。
+**离开此对话**（解绑，保留 Goal）：
+
+```bash
+loopx --registry .loopx/registry.json unbind-agent-thread \
+  --goal-id <goal-id> \
+  --thread-id "$DSH_SESSION_ID" \
+  --host-surface deepseek-harness-native \
+  --agent-id <agent-id> \
+  --execute
+```
+
+任务面板上的「离开此对话」会对本 Session 执行同一条命令。只停自动续跑、不解绑：
+
+```bash
+loopx goal-lifecycle --goal-id <goal-id> --operation stop --execute
+```
+
+在**已有 Goal 的项目**里新开 DSH 聊天，应注册自己的工人
+（`loopx start-goal --new-peer ...`）。不要传入别的 Session 的 `--agent-id`，
+除非你明确要接管。
+
+LoopX 的 Goal 挂在项目上。DSH 的 Session 是独立任务。Driver 只会推进 quota
+允许的 agent todo，并且不会跳过 `user_gate`。
 
 ## 实际会用到的命令
 

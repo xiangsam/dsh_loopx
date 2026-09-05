@@ -4,8 +4,10 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 
+import { LoopXBoardView } from './LoopXBoardView.tsx'
 import { LoopXGoalBar } from './LoopXGoalBar.tsx'
-import { ensurePluginStyle } from './goalbar.module.css'
+import { ensurePluginStyle as ensureGoalBarStyle } from './goalbar.module.css'
+import { ensurePluginStyle as ensureBoardStyle } from './board.module.css'
 import {
   GOALBAR_LOCALES,
   GOALBAR_LOCALE_NAMESPACE,
@@ -24,8 +26,10 @@ type GoalBarClientContext = Context & {
 /** Register the exact-Session LoopX GoalBar contribution and its owned copy. */
 export function apply(ctx: GoalBarClientContext): void {
   // Client module exports are cached across a same-page plugin reapply, so CSS
-  // installation must be an explicit, idempotent apply-time operation.
-  ensurePluginStyle()
+  // installation must be an explicit, idempotent apply-time operation. Every
+  // plugin-owned stylesheet is ensured here so HMR reapply restores it.
+  ensureGoalBarStyle()
+  ensureBoardStyle()
 
   // Register ownership immediately after installation, before any later apply
   // step can fail, so Cordis rollback and ordinary unload both remove the tag.
@@ -55,4 +59,18 @@ export function apply(ctx: GoalBarClientContext): void {
       ),
     }),
   }, LoopXGoalBar))
+  ctx.slots.inject('conversation.view', () => ctx.slots.register({
+    name: 'conversation.view',
+    id: 'loopx-board',
+    order: 25,
+    label: 'LoopX',
+    locale: GOALBAR_LOCALE_NAMESPACE,
+    inject: sessionId => ({
+      sessionId: String(sessionId),
+      rpc,
+      subscribeConnectionReset: (listener: () => void) => (
+        ctx.on('connection/reset', listener)
+      ),
+    }),
+  }, LoopXBoardView))
 }

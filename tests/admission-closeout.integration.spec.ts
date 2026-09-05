@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -13,6 +14,11 @@ import type { FileRunner } from '../src/cli.ts'
 import { LoopXContinuationDriver } from '../src/driver.ts'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+// This driver integration runs the real LoopX CLI from the monorepo checkout
+// (`python -m loopx.cli` with repoRoot on PYTHONPATH). A plugin-only copy of
+// this repository does not carry the `loopx` Python package, so the test can
+// only execute where that package is a sibling. Skip cleanly otherwise.
+const loopxModulePresent = existsSync(join(repoRoot, 'loopx'))
 const sessionId = 'dsh-closeout-session'
 const goalId = 'dsh-closeout-goal'
 const agentId = 'dsh-closeout-agent'
@@ -253,9 +259,11 @@ function executablePlanArgs(
 }
 
 describe('DSH admission-to-closeout integration', () => {
-  it('settles the queued exact receipt once through the raw generic CLI plan', async () => {
-    const testFixture = await fixture()
-    const warnings: string[] = []
+  ;(loopxModulePresent ? it : it.skip)(
+    'settles the queued exact receipt once through the raw generic CLI plan',
+    async () => {
+      const testFixture = await fixture()
+      const warnings: string[] = []
     const driver = new LoopXContinuationDriver({
       isLiveAgent: () => true,
       runner: realLoopXRunner,

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { BoardDataSnapshotV1 } from '../goalbar/protocol.ts'
+import type {
+  BoardDataSnapshotV1,
+  BoardGoalChoiceV1,
+} from '../goalbar/protocol.ts'
 import type { GoalBarConnectionResetSubscriber } from './useGoalBar.ts'
 import type { GoalBarRpc, GoalBarWatchAnchorV1 } from './rpc.ts'
 
@@ -12,11 +15,15 @@ export interface UseBoardOptions {
 
 export interface UseBoardResult {
   readonly data: BoardDataSnapshotV1 | null
+  readonly goals: readonly BoardGoalChoiceV1[]
   readonly error: boolean
   readonly loading: boolean
   readonly pending: boolean
   readonly refresh: () => void
   readonly toggleActivation: () => void
+  readonly unbindSession: () => void
+  readonly join: (goalId: string, loopxAgentId: string, mode: 'fresh' | 'takeover') => void
+  readonly deleteGoal: (goalId: string, loopxAgentId: string) => void
 }
 
 /**
@@ -30,6 +37,7 @@ export function useBoard({
   subscribeConnectionReset,
 }: UseBoardOptions): UseBoardResult {
   const [data, setData] = useState<BoardDataSnapshotV1 | null>(null)
+  const [goals, setGoals] = useState<readonly BoardGoalChoiceV1[]>([])
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
@@ -37,6 +45,7 @@ export function useBoard({
   const generationRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const dataRef = useRef<BoardDataSnapshotV1 | null>(null)
+  const goalsRef = useRef<readonly BoardGoalChoiceV1[]>([])
   const pendingRef = useRef(false)
 
   const replaceGeneration = useCallback(() => {
@@ -52,12 +61,24 @@ export function useBoard({
     if (signal.aborted) return false
     if (outcome.ok && outcome.response.result.kind === 'ready') {
       dataRef.current = outcome.response.result.data
+      goalsRef.current = []
       setData(outcome.response.result.data)
+      setGoals([])
+      setError(false)
+      return true
+    }
+    if (outcome.ok && outcome.response.result.kind === 'choose') {
+      dataRef.current = null
+      goalsRef.current = outcome.response.result.goals
+      setData(null)
+      setGoals(outcome.response.result.goals)
       setError(false)
       return true
     }
     dataRef.current = null
+    goalsRef.current = []
     setData(null)
+    setGoals([])
     setError(true)
     return false
   }, [rpc, sessionId])
@@ -155,6 +176,77 @@ export function useBoard({
     })()
   }, [replaceGeneration, rpc, runCycle, sessionId])
 
+  const join = useCallback((goalId: string, loopxAgentId: string, mode: 'fresh' | 'takeover') => {
+    if (sessionRef.current !== sessionId || pendingRef.current) return
+    pendingRef.current = true
+    setPending(true)
+    const generation = replaceGeneration()
+    void (async () => {
+      try {
+        await rpc.join(sessionId, goalId, loopxAgentId, mode, generation.controller.signal)
+        if (generation.value !== generationRef.current) return
+        await runCycle(generation)
+      } finally {
+        if (generation.value === generationRef.current) {
+          pendingRef.current = false
+          setPending(false)
+        }
+      }
+    })()
+  }, [replaceGeneration, rpc, runCycle, sessionId])
+
+  const deleteGoal = useCallback((goalId: string, loopxAgentId: string) => {
+    const snapshot = dataRef.current
+    if (sessionRef.current !== sessionId
+      || snapshot === null
+      || snapshot.goalId !== goalId
+      || snapshot.loopxAgentId !== loopxAgentId
+      || !snapshot.sessionBound
+      || pendingRef.current) return
+    pendingRef.current = true
+    setPending(true)
+    const generation = replaceGeneration()
+    void (async () => {
+      try {
+        await rpc.deleteGoal(sessionId, { goalId, loopxAgentId }, generation.controller.signal)
+        if (generation.value !== generationRef.current) return
+        await runCycle(generation)
+      } finally {
+        if (generation.value === generationRef.current) {
+          pendingRef.current = false
+          setPending(false)
+        }
+      }
+    })()
+  }, [replaceGeneration, rpc, runCycle, sessionId])
+
+  const unbindSession = useCallback(() => {
+    const snapshot = dataRef.current
+    if (sessionRef.current !== sessionId
+      || snapshot === null
+      || snapshot.goalId === null
+      || snapshot.loopxAgentId === null
+      || !snapshot.sessionBound
+      || pendingRef.current) return
+    const goalId = snapshot.goalId
+    const loopxAgentId = snapshot.loopxAgentId
+    pendingRef.current = true
+    setPending(true)
+    const generation = replaceGeneration()
+    void (async () => {
+      try {
+        await rpc.unbind(sessionId, { goalId, loopxAgentId }, generation.controller.signal)
+        if (generation.value !== generationRef.current) return
+        await runCycle(generation)
+      } finally {
+        if (generation.value === generationRef.current) {
+          pendingRef.current = false
+          setPending(false)
+        }
+      }
+    })()
+  }, [replaceGeneration, rpc, runCycle, sessionId])
+
   useEffect(() => {
     sessionRef.current = sessionId
     dataRef.current = null
@@ -176,5 +268,5 @@ export function useBoard({
     })
   }, [replaceGeneration, runCycle, sessionId, subscribeConnectionReset])
 
-  return { data, error, loading, pending, refresh, toggleActivation }
+  return { data, goals, error, loading, pending, refresh, toggleActivation, unbindSession, join, deleteGoal }
 }

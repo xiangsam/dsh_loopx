@@ -97,6 +97,14 @@ export function LoopXGoalBar({
           >
             {actionLabel}
           </button>
+          <button
+            type="button"
+            className={styles.action}
+            disabled={goalBar.unbindDisabled}
+            onClick={() => { goalBar.requestUnbind() }}
+          >
+            {t('board.unbind')}
+          </button>
           {goalBar.errorCode !== null && (
             <button
               type="button"

@@ -14,6 +14,7 @@ import {
 } from './protocol.ts'
 import type {
   BoardDataSnapshotV1,
+  BoardGoalChoiceV1,
   BoardTaskStatusV1,
   BoardTaskV1,
   GoalBarActivationV1,
@@ -594,7 +595,38 @@ export async function readGoalBarActivation(
 
 export type BoardProjectionReadResult =
   | { readonly kind: 'ready'; readonly data: BoardDataSnapshotV1 }
+  | { readonly kind: 'choose'; readonly goals: readonly BoardGoalChoiceV1[] }
   | { readonly kind: 'fault'; readonly code: GoalBarReadFaultCode }
+
+const WORKSPACE_GOAL_LIMIT = 20
+
+export function decodeWorkspaceGoalChoices(
+  value: unknown,
+  exitCode: number,
+): BoardGoalChoiceV1[] | undefined {
+  const input = record(value)
+  const goals = input?.goals
+  if (exitCode !== 0 || input?.ok !== true || !Array.isArray(goals)) return undefined
+  const choices: BoardGoalChoiceV1[] = []
+  for (const item of goals) {
+    const goal = record(item)
+    if (goal === undefined || goal.status !== 'active' || !isGoalBarGoalId(goal.id)) continue
+    const agents = Array.isArray(goal.registered_agents) ? goal.registered_agents : []
+    const loopxAgentId = agents.find(isGoalBarAgentId) ?? 'default'
+    if (!isGoalBarAgentId(loopxAgentId)) return undefined
+    const rawTitle = typeof goal.display_name === 'string' ? goal.display_name : goal.id
+    const title = clipBoardTitle(rawTitle) ?? goal.id
+    choices.push({ goalId: goal.id, title, loopxAgentId })
+    if (choices.length >= WORKSPACE_GOAL_LIMIT) break
+  }
+  return choices
+}
+
+export function publicSafeAgentIdForSession(sessionId: string): string {
+  const compact = sessionId.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const tail = compact.slice(-16) || 'session'
+  return `dsh_${tail}`
+}
 
 function clipBoardTitle(value: string): string | undefined {
   const trimmed = value.replace(/^\[P\d\]\s*/u, '').trim()
@@ -707,11 +739,25 @@ export function decodeUniqueActiveProjectGoal(
   return active[0]
 }
 
-async function readUniqueWorkspaceGoal(
+/**
+ * A project that has never bootstrapped LoopX (or was fully uninstalled) has
+ * no active `registry.json`. The LoopX CLI reports that as a fixed, empty-state
+ * signal rather than a transport or authority failure. Mapping it to zero goals
+ * keeps the board on its "no active Goal" surface instead of a hard fault.
+ */
+function workspaceRegistryNotProvisioned(value: unknown): boolean {
+  const input = record(value)
+  return input?.ok === false
+    && input.error === 'registry file does not exist'
+    && input.goals === undefined
+    && input.schema_version === undefined
+}
+
+async function readWorkspaceGoals(
   options: GoalBarCliReadOptions,
 ): Promise<
-  | { readonly kind: 'value'; readonly goalId: string; readonly loopxAgentId: string }
-  | { readonly kind: 'none' }
+  | { readonly kind: 'goals'; readonly goals: readonly BoardGoalChoiceV1[] }
+  | { readonly kind: 'choose'; readonly goals: readonly BoardGoalChoiceV1[] }
   | { readonly kind: 'fault'; readonly code: GoalBarReadFaultCode }
 > {
   try {
@@ -720,10 +766,16 @@ async function readUniqueWorkspaceGoal(
       '--format', 'json',
       'registry',
     ])
-    const decoded = decodeUniqueActiveProjectGoal(result.payload, result.exitCode)
-    if (decoded === undefined) return { kind: 'fault', code: 'binding_read_failed' }
-    if (decoded === 'none' || decoded === 'ambiguous') return { kind: 'none' }
-    return { kind: 'value', ...decoded }
+    const goals = decodeWorkspaceGoalChoices(result.payload, result.exitCode)
+    if (goals !== undefined) {
+      if (goals.length === 0) return { kind: 'goals', goals }
+      if (goals.length > 1) return { kind: 'choose', goals }
+      return { kind: 'goals', goals }
+    }
+    if (workspaceRegistryNotProvisioned(result.payload)) {
+      return { kind: 'goals', goals: [] }
+    }
+    return { kind: 'fault', code: 'binding_read_failed' }
   } catch (error: unknown) {
     return fixedFault(error, 'binding_read_failed')
   }
@@ -747,13 +799,18 @@ export async function readBoardProjection(
     loopxAgentId = binding.loopxAgentId
     sessionBound = true
   } else {
-    const workspace = await readUniqueWorkspaceGoal(options)
+    const workspace = await readWorkspaceGoals(options)
     if (workspace.kind === 'fault') return workspace
-    if (workspace.kind === 'none') {
+    if (workspace.kind === 'choose') return workspace
+    if (workspace.goals.length === 0) {
       return { kind: 'ready', data: emptyBoard(sessionId) }
     }
-    goalId = workspace.goalId
-    loopxAgentId = workspace.loopxAgentId
+    const single = workspace.goals[0]
+    if (single === undefined) {
+      return { kind: 'fault', code: 'binding_read_failed' }
+    }
+    goalId = single.goalId
+    loopxAgentId = single.loopxAgentId
   }
 
   const listTodos = async (role: 'agent' | 'user') => {

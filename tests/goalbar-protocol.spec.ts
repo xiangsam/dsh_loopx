@@ -44,7 +44,7 @@ describe('GoalBar request V2', () => {
       ...watch, expected: null, agentStatus: null,
     })).toEqual({ ...watch, expected: null, agentStatus: null })
 
-    for (const op of ['start', 'pause'] as const) {
+    for (const op of ['start', 'pause', 'unbind'] as const) {
       expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS[op], {
         v: GOALBAR_REQUEST_VERSION, op, sessionId, expected: binding,
       })).toEqual({ v: GOALBAR_REQUEST_VERSION, op, sessionId, expected: binding })
@@ -205,6 +205,97 @@ describe('GoalBar boardData V2', () => {
       kind: 'ready',
       data: { ...data, quota: '1 compute' },
     }))).toBeUndefined()
+  })
+
+  it('decodes the choose result with a closed goal list', () => {
+    const goals = [{
+      goalId: 'goal-one',
+      title: 'Build the panel',
+      loopxAgentId: 'dsh_worker1',
+    }]
+    expect(decodeGoalBarResponseV1(boardRequest, response(boardRequest, {
+      kind: 'choose', goals,
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'boardData',
+      sessionId,
+      result: { kind: 'choose', goals },
+    })
+    expect(decodeGoalBarResponseV1(boardRequest, response(boardRequest, {
+      kind: 'choose',
+      goals: [{ ...goals[0], title: 'bad\ncontrol' }],
+    }))).toBeUndefined()
+  })
+})
+
+describe('GoalBar join V2', () => {
+  const joinRequest = {
+    v: GOALBAR_REQUEST_VERSION,
+    op: 'join',
+    sessionId,
+    goalId: 'goal-one',
+    loopxAgentId: 'dsh_worker1',
+    mode: 'fresh',
+  } as const
+
+  it('decodes fresh and takeover join requests', () => {
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.join, joinRequest)).toEqual(joinRequest)
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.join, {
+      ...joinRequest, mode: 'takeover',
+    })).toEqual({ ...joinRequest, mode: 'takeover' })
+    // join must reject an unlisted mode.
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.join, {
+      ...joinRequest, mode: 'default',
+    })).toBeUndefined()
+  })
+
+  it('decodes the closed join result', () => {
+    expect(decodeGoalBarResponseV1(joinRequest, response(joinRequest, {
+      kind: 'succeeded',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'join',
+      sessionId,
+      result: { kind: 'succeeded' },
+    })
+    expect(decodeGoalBarResponseV1(joinRequest, response(joinRequest, {
+      kind: 'rejected', code: 'not_actionable',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'join',
+      sessionId,
+      result: { kind: 'rejected', code: 'not_actionable' },
+    })
+  })
+})
+
+describe('GoalBar deleteGoal V2', () => {
+  const deleteRequest = {
+    v: GOALBAR_REQUEST_VERSION,
+    op: 'deleteGoal',
+    sessionId,
+    expected: binding,
+  } as const
+
+  it('decodes the delete request and closed result', () => {
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.deleteGoal, deleteRequest))
+      .toEqual(deleteRequest)
+    expect(decodeGoalBarResponseV1(deleteRequest, response(deleteRequest, {
+      kind: 'succeeded',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'deleteGoal',
+      sessionId,
+      result: { kind: 'succeeded' },
+    })
+    expect(decodeGoalBarResponseV1(deleteRequest, response(deleteRequest, {
+      kind: 'rejected', code: 'binding_validation_failed',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'deleteGoal',
+      sessionId,
+      result: { kind: 'rejected', code: 'binding_validation_failed' },
+    })
   })
 })
 

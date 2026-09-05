@@ -38,8 +38,10 @@ export interface UseGoalBarResult {
   readonly pendingAction: boolean
   readonly action: GoalBarAction | null
   readonly actionDisabled: boolean
+  readonly unbindDisabled: boolean
   readonly refresh: () => void
   readonly requestAction: (action: GoalBarAction) => void
+  readonly requestUnbind: () => void
 }
 
 interface GoalBarLocalState {
@@ -375,6 +377,78 @@ export function useGoalBar({
     runReadWatchCycle,
   ])
 
+  const requestUnbind = useCallback(() => {
+    const current = stateRef.current
+    const snapshot = current.snapshot
+    if (activeSessionRef.current !== rpcSessionId
+      || snapshot === null
+      || snapshot.sessionId !== rpcSessionId
+      || current.errorCode !== null
+      || current.syncing
+      || current.pendingAction
+      || actionGuardRef.current) return
+
+    actionGuardRef.current = true
+    const generation = replaceGeneration()
+    commit({
+      snapshot,
+      nextActionTitle: current.nextActionTitle,
+      errorCode: null,
+      syncing: false,
+      pendingAction: true,
+    })
+
+    void (async () => {
+      const expected = {
+        goalId: snapshot.goalId,
+        loopxAgentId: snapshot.loopxAgentId,
+      }
+      const action = await rpc.unbind(
+        rpcSessionId,
+        expected,
+        generation.controller.signal,
+      )
+      if (!isCurrent(generation)) return
+      if (!action.ok) {
+        applySyncFault(action.code)
+        return
+      }
+      const result = action.response.result
+      const left = result.kind === 'succeeded'
+        || (result.kind === 'applied_with_warning' && result.code === 'post_read_failed')
+      if (!left) {
+        commit({
+          snapshot,
+          nextActionTitle: current.nextActionTitle,
+          errorCode: result.kind === 'rejected' || result.kind === 'unknown'
+            || result.kind === 'applied_with_warning'
+            ? result.code
+            : 'operation_result_unknown',
+          syncing: false,
+          pendingAction: false,
+        })
+        return
+      }
+      actionGuardRef.current = false
+      commit({
+        snapshot: null,
+        nextActionTitle: null,
+        errorCode: null,
+        syncing: true,
+        pendingAction: false,
+      })
+      void runReadWatchCycle(generation, null, true)
+    })()
+  }, [
+    applySyncFault,
+    commit,
+    isCurrent,
+    replaceGeneration,
+    rpc,
+    rpcSessionId,
+    runReadWatchCycle,
+  ])
+
   useEffect(() => {
     activeSessionRef.current = rpcSessionId
     anchorRef.current = null
@@ -419,7 +493,12 @@ export function useGoalBar({
     pendingAction: state.pendingAction,
     action,
     actionDisabled,
+    unbindDisabled: snapshot === null
+      || state.errorCode !== null
+      || state.syncing
+      || state.pendingAction,
     refresh,
     requestAction,
+    requestUnbind,
   }
 }

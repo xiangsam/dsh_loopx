@@ -6,6 +6,9 @@ export const GOALBAR_ENDPOINTS = Object.freeze({
   watch: 'goalbar/watch',
   start: 'goalbar/start',
   pause: 'goalbar/pause',
+  unbind: 'goalbar/unbind',
+  join: 'goalbar/join',
+  deleteGoal: 'goalbar/delete',
   boardData: 'goalbar/board-data',
 } as const)
 
@@ -88,6 +91,26 @@ export type GoalBarRequestV1 =
     }
   | {
       readonly v: typeof GOALBAR_REQUEST_VERSION
+      readonly op: 'unbind'
+      readonly sessionId: string
+      readonly expected: GoalBarExpectedBindingV1
+    }
+  | {
+      readonly v: typeof GOALBAR_REQUEST_VERSION
+      readonly op: 'join'
+      readonly sessionId: string
+      readonly goalId: string
+      readonly loopxAgentId: string
+      readonly mode: 'fresh' | 'takeover'
+    }
+  | {
+      readonly v: typeof GOALBAR_REQUEST_VERSION
+      readonly op: 'deleteGoal'
+      readonly sessionId: string
+      readonly expected: GoalBarExpectedBindingV1
+    }
+  | {
+      readonly v: typeof GOALBAR_REQUEST_VERSION
       readonly op: 'boardData'
       readonly sessionId: string
     }
@@ -146,6 +169,13 @@ export type GoalBarActionResultV1 =
       readonly code: 'post_read_failed'
     }
 
+export type GoalBarJoinResultV1 =
+  | { readonly kind: 'succeeded' }
+  | { readonly kind: 'rejected'; readonly code: GoalBarActionRejectionCode }
+  | { readonly kind: 'unknown'; readonly code: 'operation_result_unknown' }
+
+export type GoalBarDeleteResultV1 = GoalBarJoinResultV1
+
 export type BoardTaskStatusV1 = 'waiting' | 'in_progress' | 'scheduled' | 'done'
 
 export interface BoardTaskV1 {
@@ -157,6 +187,12 @@ export interface BoardTaskV1 {
 }
 
 export type BoardNextActionKindV1 = 'agent' | 'user_gate'
+
+export interface BoardGoalChoiceV1 {
+  readonly goalId: string
+  readonly title: string
+  readonly loopxAgentId: string
+}
 
 export interface BoardDataSnapshotV1 {
   readonly sessionId: string
@@ -172,6 +208,7 @@ export interface BoardDataSnapshotV1 {
 
 export type GoalBarBoardDataResultV1 =
   | { readonly kind: 'ready'; readonly data: BoardDataSnapshotV1 }
+  | { readonly kind: 'choose'; readonly goals: readonly BoardGoalChoiceV1[] }
   | { readonly kind: 'unavailable'; readonly reason: 'session_unavailable' | 'cli_unavailable' | 'board_read_failed' }
 
 export type GoalBarResponseV1 =
@@ -201,6 +238,24 @@ export type GoalBarResponseV1 =
     }
   | {
       readonly v: typeof GOALBAR_RESPONSE_VERSION
+      readonly op: 'unbind'
+      readonly sessionId: string
+      readonly result: GoalBarActionResultV1
+    }
+  | {
+      readonly v: typeof GOALBAR_RESPONSE_VERSION
+      readonly op: 'join'
+      readonly sessionId: string
+      readonly result: GoalBarJoinResultV1
+    }
+  | {
+      readonly v: typeof GOALBAR_RESPONSE_VERSION
+      readonly op: 'deleteGoal'
+      readonly sessionId: string
+      readonly result: GoalBarDeleteResultV1
+    }
+  | {
+      readonly v: typeof GOALBAR_RESPONSE_VERSION
       readonly op: 'boardData'
       readonly sessionId: string
       readonly result: GoalBarBoardDataResultV1
@@ -213,7 +268,7 @@ export type GoalBarResponseFor<T extends GoalBarRequestV1> =
       ? Extract<GoalBarResponseV1, { readonly op: 'watch' }>
       : T extends { readonly op: 'boardData' }
         ? Extract<GoalBarResponseV1, { readonly op: 'boardData' }>
-        : T extends { readonly op: infer TOp extends 'start' | 'pause' }
+        : T extends { readonly op: infer TOp extends 'start' | 'pause' | 'unbind' | 'join' | 'deleteGoal' }
           ? Extract<GoalBarResponseV1, { readonly op: TOp }>
           : never
 
@@ -349,6 +404,27 @@ export function decodeGoalBarRequestV1(
                 loopxAgentId: expected.loopxAgentId as string,
               },
           agentStatus: input.agentStatus,
+        }
+      : undefined
+  }
+
+  if (op === 'join') {
+    const input = exactRecord(value, [
+      'v', 'op', 'sessionId', 'goalId', 'loopxAgentId', 'mode',
+    ])
+    return input?.v === GOALBAR_REQUEST_VERSION
+      && input.op === op
+      && isGoalBarSessionId(input.sessionId)
+      && isGoalBarGoalId(input.goalId)
+      && isGoalBarAgentId(input.loopxAgentId)
+      && isOneOf(input.mode, ['fresh', 'takeover'] as const)
+      ? {
+          v: GOALBAR_REQUEST_VERSION,
+          op,
+          sessionId: input.sessionId,
+          goalId: input.goalId,
+          loopxAgentId: input.loopxAgentId,
+          mode: input.mode,
         }
       : undefined
   }
@@ -673,6 +749,51 @@ function decodeBoardDataResult(
       ? { kind: 'unavailable', reason: input.reason }
       : undefined
   }
+  if (candidate?.kind === 'choose') {
+    const input = exactRecord(value, ['kind', 'goals'])
+    if (input === undefined || !Array.isArray(input.goals) || input.goals.length === 0
+      || input.goals.length > 20) {
+      return undefined
+    }
+    const goals: BoardGoalChoiceV1[] = []
+    for (const item of input.goals) {
+      const goal = exactRecord(item, ['goalId', 'title', 'loopxAgentId'])
+      if (goal === undefined
+        || !isGoalBarGoalId(goal.goalId)
+        || !isBoardTitle(goal.title)
+        || !isGoalBarAgentId(goal.loopxAgentId)) {
+        return undefined
+      }
+      goals.push({
+        goalId: goal.goalId,
+        title: goal.title,
+        loopxAgentId: goal.loopxAgentId,
+      })
+    }
+    return { kind: 'choose', goals }
+  }
+  return undefined
+}
+
+function decodeJoinResult(value: unknown): GoalBarJoinResultV1 | undefined {
+  const candidate = record(value)
+  if (candidate?.kind === 'succeeded') {
+    const input = exactRecord(value, ['kind'])
+    return input === undefined ? undefined : { kind: 'succeeded' }
+  }
+  if (candidate?.kind === 'rejected') {
+    const input = exactRecord(value, ['kind', 'code'])
+    return input !== undefined
+      && isOneOf(input.code, GOALBAR_ACTION_REJECTION_CODES)
+      ? { kind: 'rejected', code: input.code }
+      : undefined
+  }
+  if (candidate?.kind === 'unknown') {
+    const input = exactRecord(value, ['kind', 'code'])
+    return input?.code === 'operation_result_unknown'
+      ? { kind: 'unknown', code: 'operation_result_unknown' }
+      : undefined
+  }
   return undefined
 }
 
@@ -751,6 +872,7 @@ export function decodeGoalBarResponseV1<T extends GoalBarRequestV1>(
     | GoalBarReadResultV1
     | GoalBarWatchResultV1
     | GoalBarActionResultV1
+    | GoalBarJoinResultV1
     | GoalBarBoardDataResultV1
     | undefined
   if (request.op === 'read') {
@@ -759,6 +881,8 @@ export function decodeGoalBarResponseV1<T extends GoalBarRequestV1>(
     result = decodeWatchResult(input.result, request.afterSessionEventSeq)
   } else if (request.op === 'boardData') {
     result = decodeBoardDataResult(input.result, request.sessionId)
+  } else if (request.op === 'join' || request.op === 'deleteGoal') {
+    result = decodeJoinResult(input.result)
   } else {
     result = decodeActionResult(input.result, request.sessionId, request.expected)
   }

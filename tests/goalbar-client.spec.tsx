@@ -24,6 +24,7 @@ import {
   type GoalBarReadResultV1,
   type GoalBarSnapshotV1,
 } from '../src/goalbar/protocol.ts'
+import { LoopXBoardView } from '../src/client/LoopXBoardView.tsx'
 import { LoopXGoalBar, type LoopXGoalBarProps } from '../src/client/LoopXGoalBar.tsx'
 import { apply, inject } from '../src/client/index.tsx'
 import {
@@ -164,6 +165,9 @@ function fakeRpc(overrides: Partial<GoalBarRpc> = {}): GoalBarRpc {
     watch: overrides.watch ?? ((_sessionId, _cursor, signal) => abortOutcome(signal)),
     start: overrides.start ?? ((_sessionId, _expected, signal) => abortOutcome(signal)),
     pause: overrides.pause ?? ((_sessionId, _expected, signal) => abortOutcome(signal)),
+    unbind: overrides.unbind ?? ((_sessionId, _expected, signal) => abortOutcome(signal)),
+    join: overrides.join ?? ((_sessionId, _goalId, _agentId, _mode, signal) => abortOutcome(signal)),
+    deleteGoal: overrides.deleteGoal ?? ((_sessionId, _expected, signal) => abortOutcome(signal)),
     boardData: overrides.boardData ?? ((_sessionId, signal) => abortOutcome(signal)),
   }
 }
@@ -226,6 +230,7 @@ describe('LoopXGoalBar presentation', () => {
       const region = view.container.querySelector('[aria-label="LoopX Goal status"]')
       expect(region?.textContent).toContain(status)
       expect(button(view.container, action).disabled).toBe(disabled)
+      expect(button(view.container, 'Leave this chat').disabled).toBe(false)
       expect(view.container.querySelector('[title]')?.getAttribute('title')).toBe(goalId)
       expect(view.container.querySelector('progress')?.getAttribute('aria-label'))
         .toBe('2 / 5')
@@ -971,6 +976,7 @@ describe('GoalBar Connection and registration boundaries', () => {
         id: string
         name?: string
         order: number
+        label?: string
         inject: (sessionId: string) => Record<string, unknown>
       }
       component: unknown
@@ -1001,14 +1007,17 @@ describe('GoalBar Connection and registration boundaries', () => {
       'conversation.input.dock',
       expect.any(Function),
     )
-    expect(ctx.slots.inject).not.toHaveBeenCalledWith(
+    expect(ctx.slots.inject).toHaveBeenCalledWith(
       'conversation.view',
       expect.any(Function),
     )
     const dock = registrations.find(item => item.options.id === 'loopx-goal')
-    expect(registrations.find(item => item.options.id === 'loopx-board')).toBeUndefined()
+    const board = registrations.find(item => item.options.id === 'loopx-board')
     expect(dock?.options.order).toBe(15)
     expect(dock?.component).toBe(LoopXGoalBar)
+    expect(board?.options.order).toBe(25)
+    expect(board?.options.label).toBe('LoopX')
+    expect(board?.component).toBe(LoopXBoardView)
     const injected = dock?.options.inject('session-injected')
     expect(injected?.rpcSessionId).toBe('session-injected')
     expect(injected).not.toHaveProperty('sessionId')
