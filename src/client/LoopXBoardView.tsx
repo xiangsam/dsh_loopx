@@ -99,16 +99,28 @@ export function LoopXBoardView({
   const bound = data !== null && data.goalId !== null
   const tasks = data?.tasks ?? []
   const open = openTasks(tasks)
+  const userOpen = open.filter(task => task.role === 'user')
+  const agentOpen = open.filter(task => task.role === 'agent')
   const doneCount = tasks.filter(task => task.status === 'done').length
   const gateCount = open.filter(task => isGateTask(task)).length
-  const inProgressCount = open.filter(task => groupKind(task) === 'in_progress').length
-  const waitingCount = open.filter(task => groupKind(task) === 'waiting').length
-  const scheduledCount = open.filter(task => groupKind(task) === 'scheduled').length
-  const groups = groupOpenTasks(open)
+  const inProgressCount = agentOpen.filter(task => groupKind(task) === 'in_progress').length
+  const waitingCount = agentOpen.filter(task => groupKind(task) === 'waiting').length
+  const scheduledCount = agentOpen.filter(task => groupKind(task) === 'scheduled').length
+  const groups = groupOpenTasks(agentOpen)
   const live = bound && data.sessionBound
   const choosing = board.goals.length > 0
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [newTask, setNewTask] = useState('')
+
+  const goalStatus = data === null || data.goalActivation === null
+    ? null
+    : data.goalActivation === 'stopped'
+      ? 'paused'
+      : userOpen.length > 0
+        ? 'needs_you'
+        : open.length > 0
+          ? 'active'
+          : 'done'
 
   const showSkeleton = board.loading && data === null && !choosing && !board.error
   const progress = data?.progress ?? null
@@ -191,6 +203,21 @@ export function LoopXBoardView({
             <div className={styles.headerMain}>
               <div className={styles.brandRow}>
                 <span className={styles.brand}>LoopX</span>
+                {goalStatus !== null && (
+                  <span
+                    className={styles.goalStatus}
+                    data-status={goalStatus}
+                    role="status"
+                  >
+                    {goalStatus === 'needs_you'
+                      ? t('board.status.needs_you')
+                      : goalStatus === 'active'
+                        ? t('board.status.active')
+                        : goalStatus === 'done'
+                          ? t('board.status.done')
+                          : t('board.status.paused')}
+                  </span>
+                )}
                 <span
                   className={styles.statusBadge}
                   data-status={data.goalActivation}
@@ -460,12 +487,44 @@ export function LoopXBoardView({
               </button>
             </form>
           )}
-          {groups.length === 0 ? (
+          {userOpen.length === 0 && groups.length === 0 ? (
             <p className={styles.empty}>
               {doneCount > 0 ? t('board.doneCount', { count: doneCount }) : t('board.empty')}
             </p>
           ) : (
             <div className={styles.groups}>
+              {userOpen.length > 0 && (
+                <div className={styles.group} data-kind="user">
+                  <div className={styles.groupHeader}>
+                    <span className={styles.groupLabel}>{t('board.group.gate')}</span>
+                    <span className={styles.groupCount}>{String(userOpen.length)}</span>
+                  </div>
+                  <ul className={styles.list}>
+                    {userOpen.map(task => (
+                      <li key={task.id} className={styles.item} data-kind="user_gate">
+                        <div className={styles.itemRow}>
+                          <h3 className={styles.itemTitle}>{task.title}</h3>
+                          <div className={styles.itemActions}>
+                            <span className={styles.badge} data-status="gate">
+                              {t('board.group.gate')}
+                            </span>
+                            {live && (
+                              <button
+                                type="button"
+                                className={styles.button}
+                                disabled={board.pending}
+                                onClick={() => board.completeTask(task.id)}
+                              >
+                                {t('board.resolve')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {groups.map(group => (
                 <div key={group.kind} className={styles.group} data-kind={group.kind}>
                   <div className={styles.groupHeader}>

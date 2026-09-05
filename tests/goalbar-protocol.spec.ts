@@ -193,6 +193,7 @@ describe('GoalBar boardData V2', () => {
         status: 'in_progress' as const,
         taskClass: 'advancement_task',
         claimedBy: binding.loopxAgentId,
+        role: 'agent' as const,
       }],
       nextActionTitle: 'Bind the live session',
       nextActionKind: 'agent' as const,

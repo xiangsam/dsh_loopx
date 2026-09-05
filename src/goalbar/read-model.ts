@@ -665,6 +665,7 @@ function decodeBoardTodoItem(value: unknown): BoardTaskV1 | undefined {
       ? item.task_class.slice(0, 64)
       : null,
     claimedBy: isGoalBarAgentId(item.claimed_by) ? item.claimed_by : null,
+    role: item.role === 'user' ? 'user' : 'agent',
   }
 }
 

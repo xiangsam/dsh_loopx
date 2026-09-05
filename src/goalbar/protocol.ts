@@ -201,6 +201,7 @@ export interface BoardTaskV1 {
   readonly status: BoardTaskStatusV1
   readonly taskClass: string | null
   readonly claimedBy: string | null
+  readonly role: 'agent' | 'user'
 }
 
 export type BoardNextActionKindV1 = 'agent' | 'user_gate'
@@ -707,7 +708,7 @@ function isBoardCount(value: unknown): value is number {
 }
 
 function decodeBoardTask(value: unknown): BoardTaskV1 | undefined {
-  const input = exactRecord(value, ['id', 'title', 'status', 'taskClass', 'claimedBy'])
+  const input = exactRecord(value, ['id', 'title', 'status', 'taskClass', 'claimedBy', 'role'])
   return input !== undefined
     && typeof input.id === 'string'
     && input.id.length > 0
@@ -719,12 +720,14 @@ function decodeBoardTask(value: unknown): BoardTaskV1 | undefined {
         && input.taskClass.length > 0
         && [...input.taskClass].length <= BOARD_TASK_CLASS_MAX))
     && (input.claimedBy === null || isGoalBarAgentId(input.claimedBy))
+    && isOneOf(input.role, ['agent', 'user'] as const)
     ? {
         id: input.id,
         title: input.title,
         status: input.status,
         taskClass: input.taskClass,
         claimedBy: input.claimedBy,
+        role: input.role,
       }
     : undefined
 }
