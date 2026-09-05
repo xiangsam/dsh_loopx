@@ -711,7 +711,7 @@ async function materializeServedClient(source) {
       slots: {
         inject(name, install) {
           assert.ok(
-            name === 'conversation.input.dock' || name === 'conversation.view',
+            name === 'conversation.input.dock',
             `unexpected slot ${name}`,
           )
           const dispose = install()
@@ -727,15 +727,13 @@ async function materializeServedClient(source) {
     }
     client.apply(ctx)
     const config = slots.get('loopx-goal')
-    const board = slots.get('loopx-board')
     assert.equal(config.order, 15)
-    assert.equal(board.order, 15)
+    assert.equal(slots.has('loopx-board'), false)
     assert.deepEqual([...slots].sort((a, b) => a[1].order - b[1].order).map(([id]) => id), [
-      'goal', 'loopx-goal', 'loopx-board', 'queue',
+      'goal', 'loopx-goal', 'queue',
     ])
     assert.equal(config.inject('session-one').rpcSessionId, 'session-one')
     assert.equal(config.inject('session-two').rpcSessionId, 'session-two')
-    assert.equal(board.inject('session-one').sessionId, 'session-one')
     return {
       slots,
       dispose: () => { for (const dispose of effects.splice(0).reverse()) dispose() },
@@ -743,13 +741,13 @@ async function materializeServedClient(source) {
   }
 
   const first = applyClient()
-  assert.equal(styles.length, 2)
+  assert.equal(styles.length, 1)
   first.dispose()
   assert.deepEqual([...first.slots.keys()], ['goal', 'queue'])
   assert.equal(styles.length, 0)
   assert.equal(await modules.import(packageId, '', {}), client)
   const reapplied = applyClient()
-  assert.equal(styles.length, 2, 'cached Client reapply did not restore CSS')
+  assert.equal(styles.length, 1, 'cached Client reapply did not restore CSS')
   reapplied.dispose()
   assert.equal(styles.length, 0)
 }

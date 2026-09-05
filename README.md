@@ -1,91 +1,92 @@
 # LoopX for DeepSeek Harness
 
-`dsh-loopx-plugin` is one independently versioned DSH package with three
-separate Loader rows:
+`dsh-loopx-plugin` is the DeepSeek Harness (DSH) plugin that connects a project
+to [LoopX](https://github.com/huangruiteng/loopx). It does not replace LoopX.
 
-- the init row automatically installs or upgrades the LoopX CLI, installs the
-  packaged workflow skills into `$DSH_AGENTS_HOME/skills` (default
-  `~/.agents/skills`), and verifies the DSH-native `loopx` entry before DSH
-  finishes loading it. `/loopx-init` remains the explicit repair command.
-- a passive same-session Driver becomes eligible only after the exact current
-  Session successfully invokes the exact `loopx` skill. It then asks LoopX
-  whether another turn may run and queues the authoritative heartbeat task
-  into that live DSH Agent.
-- the package-root Host registers a loopback-only `/loopx` Connection channel,
-  and its web Client contributes a compact GoalBar between DSH's native GoalBar
-  and Queue dock rows, plus a DSH `conversation.view` panel for this exact
-  Session. Both read LoopX CLI; they do not embed or clone the LoopX dashboard.
-  The GoalBar stays hidden until this exact Session is bound. The conversation
-  view is workspace-first: a unique active Goal in the project cwd is visible
-  even before this chat is the live Driver. Start/Pause and same-session
-  continuation still require binding this Session with `/loopx`.
+After it is installed, you can start durable LoopX work from chat with
+`/loopx <task>`, keep the same Session running when LoopX quota allows, and
+see a compact Goal status row plus a Session Goal panel. LoopX remains the
+only authority for Goal, Agent, Todo, quota, and thread-binding data.
 
-Installing the plugin and starting DSH load and prepare these capabilities;
-neither creates a binding nor activates the Driver. The GoalBar
-does one bounded read when a browser row mounts, then watches exact-Session
-`step/end` and `turn/end` boundaries. It rereads LoopX only when the opaque
-revision of the authoritative binding or active Goal state changes; a watch
-lease also detects changes written outside that Session. DSH Agent-status
-events update an existing row without a LoopX business read. Until one exact
-Session contains valid typed `loopx` invocation evidence, its Driver makes no
-LoopX CLI, binding, quota, or heartbeat call, creates no timer, and queues no
-followup.
+Chinese: [README.zh.md](README.zh.md)
 
-The package does not expose LoopX model tools, a binding sidecar, or its own
-Goal/Todo state. Models use the installed LoopX skills and call the LoopX CLI
-directly. LoopX remains the only authority for Goal, Agent, Todo, quota,
-activation, and durable thread-binding data. The GoalBar protocol and its
-deferred atomicity limit are specified in the versioned
-[DSH native LoopX design](../../docs/plans/2026-08-20-dsh-native-skill-driver.md).
+Current checkout version: **0.1.1-beta.5**. The last published prebuilt
+tarball is **0.1.1-beta.4**. Install this checkout with `./install.sh` if you
+want the source that matches `package.json`.
+
+## What you get
+
+One package, three DSH Loader rows:
+
+| Row | What it does | When it becomes active |
+| --- | --- | --- |
+| **Init** | Installs or upgrades a private LoopX CLI and the LoopX workflow skills, then verifies the DSH-native `loopx` entry before DSH finishes loading the plugin. | Automatically on DSH start. `/loopx-init` is only a repair command. |
+| **Driver** | After *this exact Session* successfully invokes the exact `loopx` skill, asks LoopX whether another turn may run and queues that heartbeat into the live DSH Agent. | Only after typed `loopx` skill evidence in this Session. Installing the plugin is not enough. |
+| **GoalBar** | A compact LoopX status row between DSH's native GoalBar and Queue. It reads LoopX CLI; it does not clone the LoopX dashboard or add a tab to every Session. | Hidden until *this exact Session* is bound by `/loopx`. Other chats in the same folder stay ordinary DSH sessions. |
+
+The plugin does **not** expose LoopX model tools, a binding sidecar, or its own
+Goal/Todo store. Models use the installed LoopX skills and call the LoopX CLI
+directly.
+
+## Requirements
+
+- Node.js 22.19+ (Node.js 23 is not supported) or Node.js 24+
+- `pnpm` 9+ for a source install
+- Python 3.11+ with `pip` (the initializer tries `PYTHON_BIN`, then
+  `python3`, `python3.14`, `python3.13`, `python3.12`, `python3.11`)
+- Network access on the first DSH start if no compatible LoopX CLI is present
+
+LoopX itself is not a prerequisite. If the plugin must install or upgrade it,
+it writes an isolated copy under `$DSH_AGENTS_HOME/runtime/dsh-loopx-plugin`
+(default `~/.agents/runtime/dsh-loopx-plugin`) and never mutates the system
+Python environment. The published plugin requires **LoopX 0.5.4 or newer**.
 
 ## Install
 
-Requirements are Node.js 22.19+, `pnpm`, Python 3.11+ with `pip`, and network
-access for the first DSH start when no compatible LoopX CLI is already
-installed. LoopX itself is deliberately not a prerequisite. The initializer
-honors an explicit `PYTHON_BIN`, otherwise it checks `python3`, `python3.14`, `python3.13`,
-`python3.12`, and `python3.11` and keeps the first interpreter that satisfies
-the requirement. If it must install or upgrade LoopX, it writes an isolated
-copy under `$DSH_AGENTS_HOME/runtime/dsh-loopx-plugin` (default
-`~/.agents/runtime/dsh-loopx-plugin`) and never mutates the system Python
-environment. This works with externally managed Python distributions that
-enforce PEP 668; the plugin does not use `--break-system-packages`.
-The published plugin requires LoopX 0.5.4 or newer. Although 0.5.3 carried the
-workflow-skill files, 0.5.4 is the first release that discovers them after the
-plugin's Linux `pip --target` managed-runtime install.
-Install the prebuilt release into the web profile:
+### Prebuilt release (published tarball)
 
 ```bash
 dsh plugin --profile web add \
   "https://github.com/huangruiteng/loopx/releases/download/dsh-loopx-plugin-v0.1.1-beta.4/dsh-loopx-plugin-0.1.1-beta.4.tgz"
 ```
 
-For a source checkout, the equivalent build-and-install path is:
+### This source checkout
+
+From the plugin root (this repository):
 
 ```bash
-cd packages/dsh-loopx-plugin
 ./install.sh
 ```
 
-Start DSH on loopback (port `0` asks the OS for a free port) and open the
-printed URL. The plugin finishes its idempotent LoopX CLI and skill bootstrap
-before DSH publishes the Web URL. Its typed `loopxBootstrap` service gates the
-Web server and runtime rows until startup has either succeeded or failed
-safely:
+That builds the current `package.json` version, packs it, installs it into
+the DSH `web` profile, and checks that the three rows above are present.
+
+Then start DSH on loopback. Port `0` asks the OS for a free port. Open the
+printed URL. The plugin finishes its LoopX CLI and skill bootstrap *before*
+DSH publishes the Web URL:
 
 ```bash
 dsh --profile web --port 0
 ```
 
 Use `/loopx <task>` immediately. If automatic initialization reports a safe
-failure in the DSH log, fix the named Python or package-manager problem and run
-`/loopx-init` once to retry; normal installation does not require that command.
+failure in the DSH log, fix the named Python or package-manager problem and
+run `/loopx-init` once. Normal installation does not need that command.
 
-Installation is the GoalBar opt-in: there is no separate remote endpoint or
-per-session grant. A row remains hidden until the exact DSH Session has one
-unique LoopX binding. After invoking the installed `loopx` skill for that
-Session, run the minimum authority readback inside that Session's DSH shell
-(or replace `$DSH_SESSION_ID` with the exact Session id):
+## First use
+
+1. In the project you want LoopX to manage, start a DSH chat.
+2. Run `/loopx` plus a concrete task, for example `/loopx 把插件功能和安装说清楚`.
+3. The installed `loopx` skill uses this Session's `$DSH_SESSION_ID` and
+   `--host-surface deepseek-harness-native`. Follow the typed LoopX CLI
+   commands it returns; do not invent Goal or Agent ids.
+4. After that Session is bound, the GoalBar can show Start / Pause and
+   agent-lane progress. `Start` resumes a stopped Goal only when this live
+   Session already has typed `loopx` skill evidence. `Pause` stops the Goal
+   and retires future continuation; it does not abort a claimed or running
+   turn.
+
+To confirm the binding from this Session's DSH shell:
 
 ```bash
 loopx --registry .loopx/registry.json --format json \
@@ -94,19 +95,90 @@ loopx --registry .loopx/registry.json --format json \
   --thread-id "$DSH_SESSION_ID"
 ```
 
-`status=bound` with one exact pair admits the row; missing or ambiguous results
-fail closed and render nothing. `Start` resumes a stopped Goal and asks the
-Driver to evaluate only when that exact live Session already contains typed
-`loopx` skill activation evidence. It never activates an inactive Session.
-`Pause` stops the Goal and retires only future queued/scheduled continuation;
-it does not abort a claimed or running turn. The DSH conversation-view panel
-watches the same Session source revision as the GoalBar. It is a Session Goal
-surface, not a LoopX dashboard: it shows the next step and remaining work for
-this exact Session, sends the operator back to chat, and never mutates LoopX
-Todos itself. The Driver continues a quota-admitted agent todo and will not
-skip a `user_gate`.
+`status=bound` with one exact Goal/Agent pair admits the GoalBar row.
+Missing or ambiguous results fail closed and render nothing.
 
-Maintainers can validate the built and packed surfaces with:
+LoopX Goals live in the project. DSH Sessions are independent tasks. Only a
+Session that invoked `/loopx` and bound this thread shows the GoalBar. Other
+chats in the same folder are unaffected. The Driver continues a quota-admitted
+agent todo and will not skip a `user_gate`.
+
+## Commands you will actually use
+
+- `/loopx <task>` — start or continue a concrete LoopX Goal in this project.
+- `/loopx` — inspect connection, status, gates, and the next safe action.
+- `/loopx-init` — repair LoopX CLI / skills after a named bootstrap failure.
+  It takes no arguments.
+- `/loopx-pr-review` — review PRs through the LoopX PR-review skill.
+- `/loopx-global-summary`, `/loopx-global-gates`, `/loopx-global-todos`,
+  `/loopx-global-risks` — read-only global manager views.
+
+## What does *not* activate the Driver
+
+The Driver is per Session, not per plugin, process, Agent, Goal, or project.
+Only these durable typed Session facts count:
+
+- a `user/message` whose source is exactly `skill-invocation`, whose name is
+  exactly `loopx`, and whose form is exactly `instructions`
+- a model `tool/call` named exactly `skill`, with JSON arguments whose `name`
+  is exactly `loopx`, paired with a later successful `tool/result`
+
+A skill catalog, ordinary prose, shell text, `/loopx-init`, plugin-authored
+init or heartbeat messages, a failed or superseded model call, and the mere
+presence of a CLI, registry, Goal, or project file do **not** activate it.
+Replacing or clearing a Session starts from that Session's new history.
+
+## Uninstall
+
+Remove the plugin from the web profile, then restart DSH:
+
+```bash
+dsh plugin --profile web remove dsh-loopx-plugin
+```
+
+This removes the GoalBar, Driver, and `/loopx-init`. It does **not** remove
+LoopX, its registry, bindings, skills, or the plugin-managed runtime.
+
+Remove only LoopX-managed skills:
+
+```bash
+loopx workflow-skills --uninstall \
+  --skills-dir "${DSH_AGENTS_HOME:-$HOME/.agents}/skills"
+```
+
+After DSH has stopped and the plugin has been removed, the isolated CLI copy
+can be deleted without touching LoopX state:
+
+```bash
+DSH_LOOPX_RUNTIME="${DSH_AGENTS_HOME:-$HOME/.agents}/runtime/dsh-loopx-plugin"
+test -f "$DSH_LOOPX_RUNTIME/loopx_cli.py" && rm -rf -- "$DSH_LOOPX_RUNTIME"
+```
+
+To roll back the plugin while keeping LoopX state, remove it and add a
+previously retained tarball:
+
+```bash
+RETAINED_PREVIOUS_DSH_LOOPX_TARBALL=/absolute/path/to/retained/previous-dsh-loopx-plugin.tgz
+dsh plugin --profile web remove dsh-loopx-plugin
+dsh plugin --profile web add "$RETAINED_PREVIOUS_DSH_LOOPX_TARBALL" --ignore-scripts
+dsh --profile web --dump-config
+```
+
+## Authority and privacy
+
+`/loopx` is registered with Connection authority `loopback`. That is a
+reachability fence, not user authentication. Phase 1 does not support LAN or
+remote browsers. The browser supplies only its injected DSH Session id and,
+for an action, the last validated Goal/Agent pair. The Host re-derives cwd
+and thread identity from the live DSH Agent, freshly resolves the binding,
+and executes only fixed LoopX argv.
+
+The wire allowlist contains ids, activation, live Agent status, full-lane
+counts, cursors, opaque source revisions, and fixed error codes. It excludes
+Todo text, Goal objective, quota, evidence, CLI output, exception messages,
+registry paths, credentials, and binding candidates.
+
+## Maintainer checks
 
 ```bash
 pnpm build
@@ -116,180 +188,8 @@ pnpm smoke:runtime
 pnpm smoke:docker
 ```
 
-The runtime smoke creates an isolated temporary DSH profile. Its real web
-process proves profile composition, automatic initialization before readiness,
-immediate skill-catalog visibility, boot-manifest discovery, bundle serving,
-Client materialization, and the loopback Connection fence. Separately, a
-packed supported-DSH Context, Connection, and WebServer with a live Host Session fixture
-cover same-turn binding discovery, lease-time source reconciliation,
-status-only updates, pending-watch cancellation, successful actions, and
-handler disposal through the real HTTP carrier. The served Client is then
-applied in DSH's real ClientModuleSystem with a VM document harness; that layer
-covers slot order and coexistence, Session injection, and ordinary-unload/HMR
-style cleanup, but it is not a browser-mounted React interaction. These layers
-do not replace the owner-reviewed packed-browser gate: that separate manual
-layer mounts the served Client at a real DSH URL and exercises Client-to-carrier
-Start/Pause. Focused Client tests cover Session-generation replacement and old
-request cancellation without duplicating that matrix in the packed smoke.
-The Docker smoke packs the current plugin and builds the current LoopX
-release-candidate wheel, then starts both in a clean Debian container with the
-supported DSH release. It proves PEP 668-compatible private installation, the
-managed launcher, startup readiness, and first-session `loopx` skill
-discovery. It requires Docker, `uv`, and network access for base images and
-never opens a browser or configures a model provider.
-
-## GoalBar authority and privacy boundary
-
-`/loopx` is registered with Connection authority `loopback`. Loopback is a
-network reachability fence, not user authentication, and Phase 1 does not
-support LAN or remote browsers. The browser supplies only its injected DSH
-Session id and, for an action, the last validated Goal/Agent pair. The Host
-re-derives cwd and thread identity from the live DSH Agent, freshly resolves
-the binding, and executes only fixed LoopX argv.
-
-The wire allowlist contains ids, activation, live Agent status, full-lane
-counts, cursors, opaque source revisions, and fixed error codes. It excludes
-Todo text, Goal objective, quota, evidence, CLI output, exception messages,
-registry paths, credentials, and binding candidates. A source revision is only
-a change token, not authorization or a compare-and-swap guard. Installing the
-package grants no model tool authority, does not create or repair bindings, and
-does not change LoopX core state by itself.
-
-## Automatic initialization and `/loopx-init` repair
-
-When DSH loads the plugin, the init row runs the same typed initialization
-routine and publishes the `loopxBootstrap` readiness service only after it
-settles. The plugin's profile patch makes DSH's Web server and runtime depend
-on that service, so the printed URL is a real bootstrap boundary. A safe
-failure is logged without raw subprocess output or local paths, releases the
-Web rows instead of stopping DSH, and leaves `/loopx-init` registered for an
-explicit retry. Automatic startup does not create Agent followups or model
-calls.
-
-The repair command has no arguments. Extra input returns a usage error before any
-model work or CLI probe. A valid invocation queues a bounded start followup on
-the exact receiving Agent, then probes the current LoopX installation. When the
-CLI is missing or lacks the DSH-native skill contract, it runs exactly one
-fixed-argv `pip install --upgrade --target <plugin-runtime> 'loopx>=0.5.4'`, writes a
-small managed Python launcher beside that target, then uses that same
-interpreter and launcher to install and read back the skills. Driver and
-GoalBar resolve this same managed runtime, including after an explicit repair.
-It never constructs a shell command, mutates the system Python environment,
-edits a registry, or retries the install mutation.
-
-Unless the command is cancelled, it queues a second bounded followup for the
-typed success or failure result. These are ordinary Agent turns, so a valid,
-uncancelled invocation normally adds two model calls; cancellation leaves only
-the already queued start turn, while invalid input adds none. The prompts do
-not authorize tools, commands, or another installation. Followup delivery is
-best effort and is not retried. The native `CommandResult` rendered by the
-command UI remains authoritative: a followup failure or model reply cannot
-change the installation result or repeat its mutation.
-
-On success, DSH's filesystem skill provider invalidates its catalog and loads
-created or updated skills without a restart. Missing or unknown skill status
-still fails initialization instead of being guessed as unchanged.
-
-After initialization, invoke the `loopx` skill with the task text. The skill
-uses the exact DSH-managed `$DSH_SESSION_ID`, passes
-`--host-surface deepseek-harness-native`, and follows the typed commands
-returned by LoopX. The historical external connector remains the distinct
-`deepseek-harness` / `dsh` surface.
-
-## Driver activation boundary
-
-Activation is per Session, not per plugin, process, Agent, Goal, or project.
-The Driver accepts only either of these durable typed Session facts:
-
-- a `user/message` whose source is exactly `skill-invocation`, whose name is
-  exactly `loopx`, and whose form is exactly `instructions`;
-- a model `tool/call` named exactly `skill`, with JSON object arguments whose
-  `name` is exactly `loopx`, paired by call id with a subsequent successful
-  `tool/result`.
-
-A skill catalog, ordinary prose, shell text, `/loopx-init`, plugin-authored
-init or heartbeat messages, a failed, malformed, unmatched, or superseded
-model call, and the presence of a CLI, registry, Goal, binding, or project file
-do not activate the Driver. Recovery folds only the current Session's existing
-typed event history in memory and performs no external probe. Replacing or
-clearing a Session recomputes from the replacement history; activation never
-inherits across that boundary and has no plugin-owned durable store.
-
-Existing Sessions upgraded from an older plugin version remain inactive when
-their retained history has no recognizable invocation evidence. Invoke the
-installed `loopx` skill once in every Session that should continue
-automatically. Activation records intent only: it does not create a binding,
-select a Goal or Agent, spend quota, or grant tool authority. After activation,
-the existing exact binding, fresh quota, scheduler/heartbeat, reservation, and
-pre-step revalidation order remains authoritative.
-
-## Driver retry boundary
-
-DSH's LLM retry plugin owns provider-request retries. This Driver retries only
-safe fixed-argv LoopX reads and an idempotent `quota should-run` receipt, at
-most twice beyond the first attempt. Every retry uses the same
-`--turn-instance-id`. Typed authority denials, incompatible schemas,
-cancellation, and human input are never retried. There is no cumulative
-eight-failure breaker or plugin-owned durable activation state. The small
-process-local activation projection is bound to one exact Session and is
-reconstructed only from its typed event history. Exhausting the three attempts
-stops that evaluation; it does not create a periodic error-retry loop. Only a
-typed LoopX local-scheduler plan can schedule another wakeup, and its limit on
-unchanged polls is enforced.
-
-For an admitted automatic continuation, that exact turn id is also carried in
-the LoopX-owned canonical heartbeat body and the typed DSH continuation source.
-The source is attribution for reservation matching, not authority. Before work
-enters a model step, the Driver replays the same receipt and the LoopX guard
-returns the typed settlement plan for that exact id. Accountable work writes
-back and spends through that plan's single deterministic effect identity; it
-does not fall back to an unbound generic spend command. Human priority, Pause,
-dispose, or a failed pre-step check before work begins does not fabricate a
-writeback, spend, or void receipt.
-
-The Driver resolves the current project registry with
-`resolve-agent-thread`, requires one exact Goal/Agent match for the live DSH
-session, and rechecks binding plus quota before and after downstream pre-step
-listeners. A human message removes an unclaimed automatic reservation; a
-mixed batch rejects the automatic message and restores the human work.
-The Driver queues at most one Driver-owned followup per automatic admission.
-Initialization messages use the distinct `dsh-loopx-plugin/init-command`
-source and never satisfy a Driver reservation.
-
-## Uninstall
-
-There is no separate GoalBar switch in Phase 1. Disable all package faces by
-removing the plugin from the web profile, then restart the running DSH process:
-
-```bash
-dsh plugin --profile web remove dsh-loopx-plugin
-```
-
-This removes the GoalBar Host/Client row, stops the Driver, and removes
-`/loopx-init`; it does not remove LoopX, its registry, bindings, skills, or the
-plugin-managed runtime. To remove only LoopX-managed skills, run:
-
-```bash
-loopx workflow-skills --uninstall \
-  --skills-dir "${DSH_AGENTS_HOME:-$HOME/.agents}/skills"
-```
-
-After DSH has stopped and the plugin has been removed, the isolated CLI copy
-can be removed independently without touching LoopX state:
-
-```bash
-DSH_LOOPX_RUNTIME="${DSH_AGENTS_HOME:-$HOME/.agents}/runtime/dsh-loopx-plugin"
-test -f "$DSH_LOOPX_RUNTIME/loopx_cli.py" && rm -rf -- "$DSH_LOOPX_RUNTIME"
-```
-
-To roll back the plugin while preserving LoopX state, remove it and install a
-previously retained package tarball, then read the profile back. Replace the
-placeholder value with the exact path of the old tarball retained before the
-upgrade:
-
-```bash
-RETAINED_PREVIOUS_DSH_LOOPX_TARBALL=/absolute/path/to/retained/previous-dsh-loopx-plugin.tgz
-dsh plugin --profile web remove dsh-loopx-plugin
-dsh plugin --profile web add "$RETAINED_PREVIOUS_DSH_LOOPX_TARBALL" --ignore-scripts
-dsh --profile web --dump-config
-```
+These prove packing, profile composition, automatic initialization, Client
+materialization, and a clean-container install. They do not replace the
+owner-reviewed packed-browser gate for Start / Pause in a real DSH URL.
+The Docker smoke needs Docker, `uv`, and network access; it never opens a
+browser or configures a model provider.

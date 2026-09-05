@@ -1,7 +1,7 @@
 {
   "name": "dsh-loopx-plugin",
-  "version": "0.1.1-beta.5",
-  "description": "LoopX CLI bootstrap, same-session driver, and DSH Session Goal panel for DeepSeek Harness",
+  "version": "0.1.1-beta.6",
+  "description": "LoopX CLI bootstrap, same-session driver, and Session GoalBar for DeepSeek Harness",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",

@@ -179,6 +179,17 @@
   cursor: not-allowed;
 }
 
+.next {
+  margin: 0;
+  padding: 0 12px 8px;
+  overflow: hidden;
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .error {
   display: flex;
   align-items: flex-start;

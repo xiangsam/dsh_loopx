@@ -228,7 +228,7 @@ describe('LoopXGoalBar presentation', () => {
       expect(button(view.container, action).disabled).toBe(disabled)
       expect(view.container.querySelector('[title]')?.getAttribute('title')).toBe(goalId)
       expect(view.container.querySelector('progress')?.getAttribute('aria-label'))
-        .toBe('Agent-lane todos: 2 of 5 processed')
+        .toBe('2 / 5')
     },
   )
 
@@ -248,7 +248,7 @@ describe('LoopXGoalBar presentation', () => {
 
     expect(view.container.textContent).toContain('0 / 0')
     expect(view.container.querySelector('progress')?.getAttribute('aria-label'))
-      .toBe('No agent-lane todos')
+      .toBe('No open todos')
   })
 
   it.each(['binding_missing', 'binding_ambiguous'] as const)(
@@ -1001,24 +1001,19 @@ describe('GoalBar Connection and registration boundaries', () => {
       'conversation.input.dock',
       expect.any(Function),
     )
-    expect(ctx.slots.inject).toHaveBeenCalledWith(
+    expect(ctx.slots.inject).not.toHaveBeenCalledWith(
       'conversation.view',
       expect.any(Function),
     )
     const dock = registrations.find(item => item.options.id === 'loopx-goal')
-    const board = registrations.find(item => item.options.id === 'loopx-board')
+    expect(registrations.find(item => item.options.id === 'loopx-board')).toBeUndefined()
     expect(dock?.options.order).toBe(15)
     expect(dock?.component).toBe(LoopXGoalBar)
-    expect(board?.component).not.toBeUndefined()
     const injected = dock?.options.inject('session-injected')
     expect(injected?.rpcSessionId).toBe('session-injected')
     expect(injected).not.toHaveProperty('sessionId')
     expect(injected).not.toHaveProperty('goal')
     expect(injected).not.toHaveProperty('remote')
-    const boardInjected = board?.options.inject('session-injected')
-    expect(boardInjected?.sessionId).toBe('session-injected')
-    expect(boardInjected).not.toHaveProperty('goal')
-    expect(boardInjected).not.toHaveProperty('remote')
 
     const owned = document.createElement('style')
     owned.dataset.plugin = 'dsh-loopx-plugin'

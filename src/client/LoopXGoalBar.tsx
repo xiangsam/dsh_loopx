@@ -110,6 +110,11 @@ export function LoopXGoalBar({
             </button>
           )}
         </div>
+        {goalBar.nextActionTitle !== null && (
+          <p className={styles.next} title={goalBar.nextActionTitle}>
+            {goalBar.nextActionTitle}
+          </p>
+        )}
         {goalBar.errorCode !== null && (
           <p className={styles.error} role="status">
             <span aria-hidden="true">!</span>

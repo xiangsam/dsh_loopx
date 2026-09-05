@@ -274,7 +274,7 @@ function createClientApplyHarness() {
     slots: {
       inject(name, install) {
         assert.ok(
-          name === 'conversation.input.dock' || name === 'conversation.view',
+          name === 'conversation.input.dock',
           `unexpected slot ${name}`,
         )
         const dispose = install()
@@ -282,11 +282,11 @@ function createClientApplyHarness() {
       },
       register(config, component) {
         assert.ok(
-          config.name === 'conversation.input.dock' || config.name === 'conversation.view',
+          config.name === 'conversation.input.dock',
           `unexpected slot name ${config.name}`,
         )
         assert.ok(
-          config.id === 'loopx-goal' || config.id === 'loopx-board',
+          config.id === 'loopx-goal',
           `unexpected slot id ${config.id}`,
         )
         assert.equal(config.order, 15)
@@ -348,8 +348,7 @@ async function assertClientArtifact(root) {
     [...new Set(requires)].sort(),
     'real ClientModuleSystem observed a different require closure',
   )
-  assert.deepEqual([...record.styles].sort(), [
-    `${packageId}/board.module.css`,
+  assert.deepEqual([...record.styles], [
     `${packageId}/goalbar.module.css`,
   ])
 
@@ -360,13 +359,13 @@ async function assertClientArtifact(root) {
     'dsh-loopx-plugin GoalBar locale',
   ])
   assert.equal(first.locales.size, 1)
-  assert.deepEqual([...first.slots].sort(), ['loopx-board', 'loopx-goal'])
-  assert.equal(styles.length, 2)
+  assert.deepEqual([...first.slots], ['loopx-goal'])
+  assert.equal(styles.length, 1)
   assert.equal(new Set(styles.map(style => style.dataset.plugin)).size, 1)
   assert.equal(styles[0].dataset.plugin, packageId)
   assert.deepEqual(
-    [...new Set(styles.map(style => style.dataset.pluginCss))].sort(),
-    [`${packageId}/board.module.css`, `${packageId}/goalbar.module.css`],
+    [...new Set(styles.map(style => style.dataset.pluginCss))],
+    [`${packageId}/goalbar.module.css`],
   )
   assert(styles.some(style => /progress/u.test(style.textContent)))
 
@@ -387,8 +386,8 @@ async function assertClientArtifact(root) {
   assert.equal(styles.length, 0, 'cached import unexpectedly reran the client factory')
   const reapplied = createClientApplyHarness()
   assert.equal(cachedExports.apply(reapplied.ctx), undefined)
-  assert.equal(styles.length, 2, 'cached-export reapply did not restore CSS')
-  assert.deepEqual([...reapplied.slots].sort(), ['loopx-board', 'loopx-goal'])
+  assert.equal(styles.length, 1, 'cached-export reapply did not restore CSS')
+  assert.deepEqual([...reapplied.slots], ['loopx-goal'])
   reapplied.dispose()
   assert.equal(styles.length, 0, 'cached-export unload retained CSS')
   removeOwnedStylesForHmr()

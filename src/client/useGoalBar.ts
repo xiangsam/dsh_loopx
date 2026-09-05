@@ -32,6 +32,7 @@ export interface UseGoalBarOptions {
 
 export interface UseGoalBarResult {
   readonly snapshot: GoalBarSnapshotV1 | null
+  readonly nextActionTitle: string | null
   readonly errorCode: GoalBarUiErrorCode | null
   readonly syncing: boolean
   readonly pendingAction: boolean
@@ -43,6 +44,7 @@ export interface UseGoalBarResult {
 
 interface GoalBarLocalState {
   readonly snapshot: GoalBarSnapshotV1 | null
+  readonly nextActionTitle: string | null
   readonly errorCode: GoalBarUiErrorCode | null
   readonly syncing: boolean
   readonly pendingAction: boolean
@@ -50,6 +52,7 @@ interface GoalBarLocalState {
 
 const INITIAL_STATE: GoalBarLocalState = {
   snapshot: null,
+  nextActionTitle: null,
   errorCode: null,
   syncing: true,
   pendingAction: false,
@@ -104,14 +107,33 @@ export function useGoalBar({
 
   const applySyncFault = useCallback((code: GoalBarUiErrorCode) => {
     commit(current => ({
+      ...current,
       snapshot: current.snapshot?.sessionId === rpcSessionId
         ? current.snapshot
+        : null,
+      nextActionTitle: current.snapshot?.sessionId === rpcSessionId
+        ? current.nextActionTitle
         : null,
       errorCode: code,
       syncing: false,
       pendingAction: false,
     }))
   }, [commit, rpcSessionId])
+
+  const loadNextAction = useCallback(async (generation: SessionGeneration) => {
+    const board = await rpc.boardData(rpcSessionId, generation.controller.signal)
+    if (!isCurrent(generation)) return
+    const title = board.ok
+      && board.response.result.kind === 'ready'
+      && board.response.result.data.sessionBound
+      ? board.response.result.data.nextActionTitle
+      : null
+    commit(current => (
+      current.snapshot === null || current.snapshot.sessionId !== rpcSessionId
+        ? current
+        : { ...current, nextActionTitle: title }
+    ))
+  }, [commit, isCurrent, rpc, rpcSessionId])
 
   const runReadWatchCycle = useCallback(async (
     generation: SessionGeneration,
@@ -145,16 +167,19 @@ export function useGoalBar({
 
         if (result.kind === 'present') {
           actionGuardRef.current = false
-          commit({
+          commit(current => ({
+            ...current,
             snapshot: result.snapshot,
             errorCode: null,
             syncing: false,
             pendingAction: false,
-          })
+          }))
+          void loadNextAction(generation)
         } else if (result.kind === 'hidden') {
           actionGuardRef.current = false
           commit({
             snapshot: null,
+            nextActionTitle: null,
             errorCode: null,
             syncing: false,
             pendingAction: false,
@@ -215,15 +240,19 @@ export function useGoalBar({
       shouldRead = true
       commit(current => ({ ...current, syncing: true }))
     }
-  }, [applySyncFault, commit, isCurrent, rpc, rpcSessionId])
+  }, [applySyncFault, commit, isCurrent, loadNextAction, rpc, rpcSessionId])
 
   const refresh = useCallback(() => {
     if (activeSessionRef.current !== rpcSessionId) return
     actionGuardRef.current = false
     const generation = replaceGeneration()
     commit(current => ({
+      ...current,
       snapshot: current.snapshot?.sessionId === rpcSessionId
         ? current.snapshot
+        : null,
+      nextActionTitle: current.snapshot?.sessionId === rpcSessionId
+        ? current.nextActionTitle
         : null,
       errorCode: current.errorCode,
       syncing: true,
@@ -254,6 +283,7 @@ export function useGoalBar({
     const generation = replaceGeneration()
     commit({
       snapshot,
+      nextActionTitle: current.nextActionTitle,
       errorCode: null,
       syncing: false,
       pendingAction: true,
@@ -290,6 +320,7 @@ export function useGoalBar({
         anchorRef.current = anchor
         commit({
           snapshot: result.snapshot,
+          nextActionTitle: current.nextActionTitle,
           errorCode: null,
           syncing: false,
           pendingAction: false,
@@ -316,6 +347,7 @@ export function useGoalBar({
         }
         commit({
           snapshot: result.snapshot,
+          nextActionTitle: current.nextActionTitle,
           errorCode: result.code,
           syncing: false,
           pendingAction: false,
@@ -325,6 +357,7 @@ export function useGoalBar({
 
       commit({
         snapshot,
+        nextActionTitle: current.nextActionTitle,
         errorCode: result.code,
         syncing: false,
         pendingAction: false,
@@ -380,6 +413,7 @@ export function useGoalBar({
 
   return {
     snapshot,
+    nextActionTitle: snapshot === null ? null : state.nextActionTitle,
     errorCode: snapshot === null ? null : state.errorCode,
     syncing: state.syncing,
     pendingAction: state.pendingAction,
