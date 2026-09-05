@@ -4,12 +4,13 @@
 DeepSeek Harness（DSH）的插件。它不替代 LoopX。
 
 装好之后，你可以在对话里用 `/loopx <任务>` 启动长期目标，在 LoopX quota
-允许时让**同一个 Session** 继续跑，并看到一条紧凑的 Goal 状态栏和本会话
-Goal 面板。Goal、Agent、Todo、quota、线程绑定的权威数据仍然只在 LoopX 里。
+允许时让**同一个 Session** 继续跑，并在绑过的会话输入框上看到一条紧凑
+GoalBar。Goal、Agent、Todo、quota、线程绑定的权威数据仍然只在 LoopX 里。
 
-English: [README.md](README.md)
+English: [README.md](README.md)。哪个对话能看见任务、谁在推进：
+[docs/session-goal-surface.zh.md](docs/session-goal-surface.zh.md)。
 
-当前源码版本：**0.1.1-beta.5**。已经发布的预构建包是 **0.1.1-beta.4**。
+当前源码版本：**0.1.1-beta.6**。已经发布的预构建包是 **0.1.1-beta.4**。
 如果要安装和 `package.json` 一致的源码，请在本仓库根目录运行 `./install.sh`。
 
 ## 插件提供什么

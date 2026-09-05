@@ -5,12 +5,13 @@ to [LoopX](https://github.com/huangruiteng/loopx). It does not replace LoopX.
 
 After it is installed, you can start durable LoopX work from chat with
 `/loopx <task>`, keep the same Session running when LoopX quota allows, and
-see a compact Goal status row plus a Session Goal panel. LoopX remains the
-only authority for Goal, Agent, Todo, quota, and thread-binding data.
+see a compact GoalBar on that bound Session. LoopX remains the only authority
+for Goal, Agent, Todo, quota, and thread-binding data.
 
-Chinese: [README.zh.md](README.zh.md)
+Chinese: [README.zh.md](README.zh.md). Session vs Driver vs the embedded
+task panel: [docs/session-goal-surface.md](docs/session-goal-surface.md).
 
-Current checkout version: **0.1.1-beta.5**. The last published prebuilt
+Current checkout version: **0.1.1-beta.6**. The last published prebuilt
 tarball is **0.1.1-beta.4**. Install this checkout with `./install.sh` if you
 want the source that matches `package.json`.
 
