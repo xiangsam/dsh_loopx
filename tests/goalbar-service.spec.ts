@@ -399,6 +399,14 @@ function harness(options: {
         stderr: '',
       }
     }
+    if (args.includes('todo') && (args.includes('add') || args.includes('complete'))) {
+      mutationOptions.push(runOptions)
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({ ok: true, written: true }),
+        stderr: '',
+      }
+    }
     if (args.includes('todo')) {
       await state.onTodo?.()
       const limit = args[args.indexOf('--limit') + 1]
@@ -1250,6 +1258,51 @@ describe('GoalBar boardData', () => {
         ],
       },
     })
+    await host.service.dispose()
+  })
+})
+
+describe('GoalBar todo mutation', () => {
+  it('adds and completes todos only for the bound driver Session', async () => {
+    const host = harness()
+    const binding = { goalId, loopxAgentId }
+    const addResponse = await host.service.handle({
+      v: 'loopx_goalbar_request_v2',
+      op: 'todoAdd',
+      sessionId,
+      expected: binding,
+      text: 'Fix the board refresh',
+    }, new AbortController().signal)
+    expect(addResponse.result).toEqual({ kind: 'succeeded' })
+    expect(host.calls.some(args => (
+      args.includes('todo') && args.includes('add') && args.includes('--text')
+    ))).toBe(true)
+
+    const completeResponse = await host.service.handle({
+      v: 'loopx_goalbar_request_v2',
+      op: 'todoComplete',
+      sessionId,
+      expected: binding,
+      todoId: 'todo_board_1',
+    }, new AbortController().signal)
+    expect(completeResponse.result).toEqual({ kind: 'succeeded' })
+    expect(host.calls.some(args => (
+      args.includes('todo') && args.includes('complete') && args.includes('--todo-id')
+    ))).toBe(true)
+    await host.service.dispose()
+  })
+
+  it('rejects todo mutations when the Session is not bound to that Goal', async () => {
+    const host = harness()
+    host.bindingMode = 'missing'
+    const response = await host.service.handle({
+      v: 'loopx_goalbar_request_v2',
+      op: 'todoAdd',
+      sessionId,
+      expected: { goalId, loopxAgentId },
+      text: 'Should not write',
+    }, new AbortController().signal)
+    expect(response.result).toEqual({ kind: 'rejected', code: 'binding_validation_failed' })
     await host.service.dispose()
   })
 })

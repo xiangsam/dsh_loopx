@@ -303,6 +303,58 @@ describe('GoalBar deleteGoal V2', () => {
   })
 })
 
+describe('GoalBar todo V2', () => {
+  const todoAddRequest = {
+    v: GOALBAR_REQUEST_VERSION,
+    op: 'todoAdd',
+    sessionId,
+    expected: binding,
+    text: 'Fix the board refresh',
+  } as const
+  const todoCompleteRequest = {
+    v: GOALBAR_REQUEST_VERSION,
+    op: 'todoComplete',
+    sessionId,
+    expected: binding,
+    todoId: 'todo_ab12cd34ef56',
+  } as const
+
+  it('decodes todoAdd and todoComplete requests with bounded text/id', () => {
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.todoAdd, todoAddRequest))
+      .toEqual(todoAddRequest)
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.todoComplete, todoCompleteRequest))
+      .toEqual(todoCompleteRequest)
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.todoAdd, {
+      ...todoAddRequest, text: '   ',
+    })).toBeUndefined()
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.todoComplete, {
+      ...todoCompleteRequest, todoId: '',
+    })).toBeUndefined()
+    expect(decodeGoalBarRequestV1(GOALBAR_ENDPOINTS.todoAdd, {
+      ...todoAddRequest, text: 'line\nbreak',
+    })).toBeUndefined()
+  })
+
+  it('decodes the closed todo result', () => {
+    expect(decodeGoalBarResponseV1(todoAddRequest, response(todoAddRequest, {
+      kind: 'succeeded',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'todoAdd',
+      sessionId,
+      result: { kind: 'succeeded' },
+    })
+    expect(decodeGoalBarResponseV1(todoCompleteRequest, response(todoCompleteRequest, {
+      kind: 'rejected', code: 'binding_validation_failed',
+    }))).toEqual({
+      v: GOALBAR_RESPONSE_VERSION,
+      op: 'todoComplete',
+      sessionId,
+      result: { kind: 'rejected', code: 'binding_validation_failed' },
+    })
+  })
+})
+
 describe('GoalBar snapshot V1 payload', () => {
   it('remains closed and internally consistent', () => {
     expect(decodeGoalBarSnapshotV1(snapshot, { sessionId, binding })).toEqual(snapshot)

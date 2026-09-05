@@ -10,6 +10,8 @@ export const GOALBAR_ENDPOINTS = Object.freeze({
   join: 'goalbar/join',
   deleteGoal: 'goalbar/delete',
   boardData: 'goalbar/board-data',
+  todoAdd: 'goalbar/todo-add',
+  todoComplete: 'goalbar/todo-complete',
 } as const)
 
 export const GOALBAR_READ_FAULT_CODES = Object.freeze([
@@ -114,6 +116,20 @@ export type GoalBarRequestV1 =
       readonly op: 'boardData'
       readonly sessionId: string
     }
+  | {
+      readonly v: typeof GOALBAR_REQUEST_VERSION
+      readonly op: 'todoAdd'
+      readonly sessionId: string
+      readonly expected: GoalBarExpectedBindingV1
+      readonly text: string
+    }
+  | {
+      readonly v: typeof GOALBAR_REQUEST_VERSION
+      readonly op: 'todoComplete'
+      readonly sessionId: string
+      readonly expected: GoalBarExpectedBindingV1
+      readonly todoId: string
+    }
 
 export type GoalBarReadResultV1 =
   | {
@@ -175,6 +191,7 @@ export type GoalBarJoinResultV1 =
   | { readonly kind: 'unknown'; readonly code: 'operation_result_unknown' }
 
 export type GoalBarDeleteResultV1 = GoalBarJoinResultV1
+export type GoalBarTodoResultV1 = GoalBarJoinResultV1
 
 export type BoardTaskStatusV1 = 'waiting' | 'in_progress' | 'scheduled' | 'done'
 
@@ -264,6 +281,18 @@ export type GoalBarResponseV1 =
       readonly sessionId: string
       readonly result: GoalBarBoardDataResultV1
     }
+  | {
+      readonly v: typeof GOALBAR_RESPONSE_VERSION
+      readonly op: 'todoAdd'
+      readonly sessionId: string
+      readonly result: GoalBarTodoResultV1
+    }
+  | {
+      readonly v: typeof GOALBAR_RESPONSE_VERSION
+      readonly op: 'todoComplete'
+      readonly sessionId: string
+      readonly result: GoalBarTodoResultV1
+    }
 
 export type GoalBarResponseFor<T extends GoalBarRequestV1> =
   T extends { readonly op: 'read' }
@@ -272,7 +301,7 @@ export type GoalBarResponseFor<T extends GoalBarRequestV1> =
       ? Extract<GoalBarResponseV1, { readonly op: 'watch' }>
       : T extends { readonly op: 'boardData' }
         ? Extract<GoalBarResponseV1, { readonly op: 'boardData' }>
-        : T extends { readonly op: infer TOp extends 'start' | 'pause' | 'unbind' | 'join' | 'deleteGoal' }
+        : T extends { readonly op: infer TOp extends 'start' | 'pause' | 'unbind' | 'join' | 'deleteGoal' | 'todoAdd' | 'todoComplete' }
           ? Extract<GoalBarResponseV1, { readonly op: TOp }>
           : never
 
@@ -431,6 +460,48 @@ export function decodeGoalBarRequestV1(
           mode: input.mode,
         }
       : undefined
+  }
+
+  if (op === 'todoAdd' || op === 'todoComplete') {
+    const input = exactRecord(value, op === 'todoAdd'
+      ? ['v', 'op', 'sessionId', 'expected', 'text']
+      : ['v', 'op', 'sessionId', 'expected', 'todoId'])
+    const expected = exactRecord(input?.expected, ['goalId', 'loopxAgentId'])
+    if (input?.v !== GOALBAR_REQUEST_VERSION
+      || input.op !== op
+      || !isGoalBarSessionId(input.sessionId)
+      || !isGoalBarGoalId(expected?.goalId)
+      || !isGoalBarAgentId(expected.loopxAgentId)) {
+      return undefined
+    }
+    const text = typeof input.text === 'string' ? input.text.trim() : ''
+    const todoId = typeof input.todoId === 'string' ? input.todoId : ''
+    if (op === 'todoAdd') {
+      if (text.length === 0 || [...text].length > 400 || /[\u0000-\u001f\u007f]/u.test(text)) {
+        return undefined
+      }
+      return {
+        v: GOALBAR_REQUEST_VERSION,
+        op,
+        sessionId: input.sessionId,
+        expected: {
+          goalId: expected.goalId,
+          loopxAgentId: expected.loopxAgentId,
+        },
+        text,
+      }
+    }
+    if (todoId.length === 0 || [...todoId].length > 80) return undefined
+    return {
+      v: GOALBAR_REQUEST_VERSION,
+      op,
+      sessionId: input.sessionId,
+      expected: {
+        goalId: expected.goalId,
+        loopxAgentId: expected.loopxAgentId,
+      },
+      todoId,
+    }
   }
 
   const input = exactRecord(value, ['v', 'op', 'sessionId', 'expected'])
@@ -917,7 +988,8 @@ export function decodeGoalBarResponseV1<T extends GoalBarRequestV1>(
     result = decodeWatchResult(input.result, request.afterSessionEventSeq)
   } else if (request.op === 'boardData') {
     result = decodeBoardDataResult(input.result, request.sessionId)
-  } else if (request.op === 'join' || request.op === 'deleteGoal') {
+  } else if (request.op === 'join' || request.op === 'deleteGoal'
+    || request.op === 'todoAdd' || request.op === 'todoComplete') {
     result = decodeJoinResult(input.result)
   } else {
     result = decodeActionResult(input.result, request.sessionId, request.expected)

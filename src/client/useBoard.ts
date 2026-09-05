@@ -24,6 +24,8 @@ export interface UseBoardResult {
   readonly unbindSession: () => void
   readonly join: (goalId: string, loopxAgentId: string, mode: 'fresh' | 'takeover') => void
   readonly deleteGoal: (goalId: string, loopxAgentId: string) => void
+  readonly addTask: (text: string) => void
+  readonly completeTask: (todoId: string) => void
 }
 
 interface BoardCacheEntry {
@@ -261,6 +263,63 @@ export function useBoard({
     })()
   }, [replaceGeneration, rpc, runCycle, sessionId])
 
+  const addTask = useCallback((text: string) => {
+    const snapshot = dataRef.current
+    const trimmed = text.trim()
+    if (sessionRef.current !== sessionId
+      || snapshot === null
+      || snapshot.goalId === null
+      || snapshot.loopxAgentId === null
+      || !snapshot.sessionBound
+      || trimmed.length === 0
+      || pendingRef.current) return
+    const goalId = snapshot.goalId
+    const loopxAgentId = snapshot.loopxAgentId
+    pendingRef.current = true
+    setPending(true)
+    const generation = replaceGeneration()
+    void (async () => {
+      try {
+        await rpc.todoAdd(sessionId, { goalId, loopxAgentId }, trimmed, generation.controller.signal)
+        if (generation.value !== generationRef.current) return
+        await runCycle(generation)
+      } finally {
+        if (generation.value === generationRef.current) {
+          pendingRef.current = false
+          setPending(false)
+        }
+      }
+    })()
+  }, [replaceGeneration, rpc, runCycle, sessionId])
+
+  const completeTask = useCallback((todoId: string) => {
+    const snapshot = dataRef.current
+    if (sessionRef.current !== sessionId
+      || snapshot === null
+      || snapshot.goalId === null
+      || snapshot.loopxAgentId === null
+      || !snapshot.sessionBound
+      || todoId.length === 0
+      || pendingRef.current) return
+    const goalId = snapshot.goalId
+    const loopxAgentId = snapshot.loopxAgentId
+    pendingRef.current = true
+    setPending(true)
+    const generation = replaceGeneration()
+    void (async () => {
+      try {
+        await rpc.todoComplete(sessionId, { goalId, loopxAgentId }, todoId, generation.controller.signal)
+        if (generation.value !== generationRef.current) return
+        await runCycle(generation)
+      } finally {
+        if (generation.value === generationRef.current) {
+          pendingRef.current = false
+          setPending(false)
+        }
+      }
+    })()
+  }, [replaceGeneration, rpc, runCycle, sessionId])
+
   useEffect(() => {
     sessionRef.current = sessionId
     // Seed the last-good projection so re-opening the tab renders immediately
@@ -287,5 +346,5 @@ export function useBoard({
     })
   }, [replaceGeneration, runCycle, sessionId, subscribeConnectionReset])
 
-  return { data, goals, error, loading, pending, refresh, toggleActivation, unbindSession, join, deleteGoal }
+  return { data, goals, error, loading, pending, refresh, toggleActivation, unbindSession, join, deleteGoal, addTask, completeTask }
 }

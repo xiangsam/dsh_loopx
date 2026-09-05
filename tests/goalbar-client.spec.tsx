@@ -169,6 +169,8 @@ function fakeRpc(overrides: Partial<GoalBarRpc> = {}): GoalBarRpc {
     join: overrides.join ?? ((_sessionId, _goalId, _agentId, _mode, signal) => abortOutcome(signal)),
     deleteGoal: overrides.deleteGoal ?? ((_sessionId, _expected, signal) => abortOutcome(signal)),
     boardData: overrides.boardData ?? ((_sessionId, signal) => abortOutcome(signal)),
+    todoAdd: overrides.todoAdd ?? ((_sessionId, _expected, _text, signal) => abortOutcome(signal)),
+    todoComplete: overrides.todoComplete ?? ((_sessionId, _expected, _todoId, signal) => abortOutcome(signal)),
   }
 }
 

@@ -59,6 +59,16 @@ export type GoalBarBoardDataResponseV1 = GoalBarResponseFor<Extract<
   { readonly op: 'boardData' }
 >>
 
+export type GoalBarTodoAddResponseV1 = GoalBarResponseFor<Extract<
+  GoalBarRequestV1,
+  { readonly op: 'todoAdd' }
+>>
+
+export type GoalBarTodoCompleteResponseV1 = GoalBarResponseFor<Extract<
+  GoalBarRequestV1,
+  { readonly op: 'todoComplete' }
+>>
+
 export interface GoalBarWatchAnchorV1 {
   readonly afterSessionEventSeq: number | null
   readonly sourceRevision: string
@@ -108,6 +118,18 @@ export interface GoalBarRpc {
     sessionId: string,
     signal: AbortSignal,
   ): Promise<GoalBarRpcOutcome<GoalBarBoardDataResponseV1>>
+  todoAdd(
+    sessionId: string,
+    expected: GoalBarExpectedBindingV1,
+    text: string,
+    signal: AbortSignal,
+  ): Promise<GoalBarRpcOutcome<GoalBarTodoAddResponseV1>>
+  todoComplete(
+    sessionId: string,
+    expected: GoalBarExpectedBindingV1,
+    todoId: string,
+    signal: AbortSignal,
+  ): Promise<GoalBarRpcOutcome<GoalBarTodoCompleteResponseV1>>
 }
 
 type ConnectionRpcCaller = Pick<ClientConnectionRpc, 'call'>
@@ -209,6 +231,26 @@ export function createGoalBarRpc(caller: ConnectionRpcCaller): GoalBarRpc {
         v: GOALBAR_REQUEST_VERSION,
         op: 'boardData',
         sessionId,
+      } as const
+      return callGoalBar(caller, request, signal)
+    },
+    todoAdd(sessionId, expected, text, signal) {
+      const request = {
+        v: GOALBAR_REQUEST_VERSION,
+        op: 'todoAdd',
+        sessionId,
+        expected,
+        text,
+      } as const
+      return callGoalBar(caller, request, signal)
+    },
+    todoComplete(sessionId, expected, todoId, signal) {
+      const request = {
+        v: GOALBAR_REQUEST_VERSION,
+        op: 'todoComplete',
+        sessionId,
+        expected,
+        todoId,
       } as const
       return callGoalBar(caller, request, signal)
     },

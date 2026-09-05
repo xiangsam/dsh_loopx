@@ -264,6 +264,41 @@ button.primary:hover:not(:disabled) {
   overflow-wrap: anywhere;
 }
 
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.addRow {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.addInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+  border-radius: 8px;
+  background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
+  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+  font: inherit;
+  font-size: 13px;
+}
+
+.addInput::placeholder {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+}
+
+.addInput:focus-visible {
+  outline: 2px solid var(--color-link, var(--dsw-alias-state-business-primary, #0070f3));
+  outline-offset: 2px;
+}
+
 .itemMeta {
   color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
   font-size: 12px;

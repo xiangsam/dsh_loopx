@@ -108,6 +108,7 @@ export function LoopXBoardView({
   const live = bound && data.sessionBound
   const choosing = board.goals.length > 0
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [newTask, setNewTask] = useState('')
 
   const showSkeleton = board.loading && data === null && !choosing && !board.error
   const progress = data?.progress ?? null
@@ -409,6 +410,35 @@ export function LoopXBoardView({
             <span className={styles.brand}>{t('board.open')}</span>
             <span className={styles.sectionMeta}>{String(open.length)}</span>
           </div>
+          {live && (
+            <form
+              className={styles.addRow}
+              onSubmit={event => {
+                event.preventDefault()
+                const text = newTask.trim()
+                if (text.length === 0) return
+                board.addTask(text)
+                setNewTask('')
+              }}
+            >
+              <input
+                className={styles.addInput}
+                type="text"
+                value={newTask}
+                placeholder={t('board.add.placeholder')}
+                aria-label={t('board.add.label')}
+                disabled={board.pending}
+                onChange={event => setNewTask(event.target.value)}
+              />
+              <button
+                type="submit"
+                className={styles.primary}
+                disabled={board.pending || newTask.trim().length === 0}
+              >
+                {t('board.add')}
+              </button>
+            </form>
+          )}
           {groups.length === 0 ? (
             <p className={styles.empty}>
               {doneCount > 0 ? t('board.doneCount', { count: doneCount }) : t('board.empty')}
@@ -434,12 +464,24 @@ export function LoopXBoardView({
                       >
                         <div className={styles.itemRow}>
                           <h3 className={styles.itemTitle}>{task.title}</h3>
-                          <span
-                            className={styles.badge}
-                            data-status={group.kind}
-                          >
-                            {groupLabel(group, t)}
-                          </span>
+                          <div className={styles.itemActions}>
+                            <span
+                              className={styles.badge}
+                              data-status={group.kind}
+                            >
+                              {groupLabel(group, t)}
+                            </span>
+                            {live && (
+                              <button
+                                type="button"
+                                className={styles.button}
+                                disabled={board.pending}
+                                onClick={() => board.completeTask(task.id)}
+                              >
+                                {isGateTask(task) ? t('board.resolve') : t('board.complete')}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {taskClassTag(task, t) !== null && (
                           <div className={styles.itemMeta}>

@@ -39,6 +39,7 @@ import type {
   GoalBarReadResultV1,
   GoalBarRequestV1,
   GoalBarResponseV1,
+  GoalBarTodoResultV1,
   GoalBarWatchResultV1,
 } from './protocol.ts'
 
@@ -283,6 +284,8 @@ export class GoalBarService implements GoalBarServiceHandle {
       if (request.op === 'boardData') return await this.boardDataResponse(request, signal)
       if (request.op === 'join') return await this.joinResponse(request, signal)
       if (request.op === 'deleteGoal') return await this.deleteGoalResponse(request, signal)
+      if (request.op === 'todoAdd') return await this.todoMutationResponse(request, signal)
+      if (request.op === 'todoComplete') return await this.todoMutationResponse(request, signal)
       return await this.actionResponse(request, signal)
     } catch {
       return fixedGoalBarFailureResponseV1(request)
@@ -755,6 +758,89 @@ export class GoalBarService implements GoalBarServiceHandle {
       op: 'deleteGoal',
       sessionId,
       result: { kind: 'rejected', code } as GoalBarDeleteResultV1,
+    }
+  }
+
+  private async todoMutationResponse(
+    request: Extract<GoalBarRequestV1, { readonly op: 'todoAdd' | 'todoComplete' }>,
+    signal: AbortSignal,
+  ): Promise<Extract<GoalBarResponseV1, { readonly op: 'todoAdd' | 'todoComplete' }>> {
+    const capture = this.capture(request.sessionId)
+    if (capture === undefined) {
+      return this.todoReject(request, 'binding_validation_failed')
+    }
+    const operationSignal = this.combinedSignal(signal)
+    let command: LoopXCommand
+    try {
+      command = await this.commandResolver(operationSignal)
+    } catch {
+      return this.todoReject(request, 'binding_validation_failed')
+    }
+    // Only the currently-bound driver Session may mutate its own Goal's todos.
+    const binding = await readGoalBarBinding({
+      command,
+      cwd: capture.cwd,
+      runner: this.runner,
+      signal: operationSignal,
+      env: this.env,
+      retryDelaysMs: this.retryDelaysMs,
+    }, request.sessionId)
+    if (binding.kind !== 'bound'
+      || binding.goalId !== request.expected.goalId
+      || binding.loopxAgentId !== request.expected.loopxAgentId) {
+      return this.todoReject(request, 'binding_validation_failed')
+    }
+    const args = request.op === 'todoAdd'
+      ? [
+          '--registry', GOALBAR_PROJECT_REGISTRY,
+          '--format', 'json',
+          'todo', 'add',
+          '--goal-id', binding.goalId,
+          '--role', 'agent',
+          '--claimed-by', binding.loopxAgentId,
+          '--task-class', 'advancement_task',
+          '--text', request.text,
+        ]
+      : [
+          '--registry', GOALBAR_PROJECT_REGISTRY,
+          '--format', 'json',
+          'todo', 'complete',
+          '--goal-id', binding.goalId,
+          '--todo-id', request.todoId,
+          '--claimed-by', binding.loopxAgentId,
+        ]
+    try {
+      await runJsonMutationCommand(command, args, {
+        runner: this.runner,
+        cwd: capture.cwd,
+        env: this.env,
+        timeoutMs: this.actionTimeoutMs,
+        maxOutputBytes: this.actionMaxOutputBytes,
+        validate: payload => {
+          const record = payload as { readonly ok?: unknown }
+          return record.ok === true
+        },
+      })
+    } catch {
+      return this.todoReject(request, 'not_actionable')
+    }
+    return {
+      v: GOALBAR_RESPONSE_VERSION,
+      op: request.op,
+      sessionId: request.sessionId,
+      result: { kind: 'succeeded' } as GoalBarTodoResultV1,
+    }
+  }
+
+  private todoReject(
+    request: Extract<GoalBarRequestV1, { readonly op: 'todoAdd' | 'todoComplete' }>,
+    code: GoalBarActionRejectionCode,
+  ): Extract<GoalBarResponseV1, { readonly op: 'todoAdd' | 'todoComplete' }> {
+    return {
+      v: GOALBAR_RESPONSE_VERSION,
+      op: request.op,
+      sessionId: request.sessionId,
+      result: { kind: 'rejected', code } as GoalBarTodoResultV1,
     }
   }
 
