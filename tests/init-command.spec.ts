@@ -188,7 +188,7 @@ describe('automatic DSH bootstrap', () => {
 
     const harness = await pluginHarness({ runner, skillsDir: '/fixture/skills' })
 
-    expect([...harness.commands.keys()]).toEqual(['loopx-init'])
+    expect([...harness.commands.keys()]).toEqual(['loopx-init', 'loopx-add'])
     expect(harness.services.get('loopxBootstrap')).toEqual({ state: 'ready' })
     expect(harness.warnings).toEqual([])
     expect(events).toEqual([
@@ -211,7 +211,7 @@ describe('automatic DSH bootstrap', () => {
 
     const harness = await pluginHarness({ runner, skillsDir: '/fixture/skills' })
 
-    expect([...harness.commands.keys()]).toEqual(['loopx-init'])
+    expect([...harness.commands.keys()]).toEqual(['loopx-init', 'loopx-add'])
     expect(harness.services.get('loopxBootstrap')).toEqual({
       state: 'failed', stage: 'install_cli', causeKind: 'missing',
     })
@@ -955,5 +955,20 @@ describe('/loopx-init followups', () => {
       `dsh-loopx-init-command: could not queue ${throwingAttempt === 1 ? 'start' : 'complete'} followup`,
     ])
     expect(harness.warnings.join(' ')).not.toContain('private followup failure')
+  })
+})
+
+describe('/loopx-add implementation', () => {
+  it('rejects an empty task text with the usage message', async () => {
+    const harness = await pluginHarness({ runner: async () => {
+      throw new Error('loopx-add must not resolve the CLI for empty input')
+    } })
+    const command = harness.commands.get('loopx-add') as CommandDefinition
+    const result = await command.handler({
+      rawInput: '   ',
+      signal: new AbortController().signal,
+      agent: { id: 'session-add', session: { header: { cwd: '/project' } } } as unknown as Agent,
+    } as CommandInvocation)
+    expect(result).toEqual({ kind: 'error', text: 'Usage: /loopx-add <task text>' })
   })
 })

@@ -11,6 +11,7 @@ import {
   resolveLoopXCommand,
   runFile,
   runJsonCommand,
+  runJsonMutationCommand,
 } from './cli.ts'
 import type { LoopXCliErrorKind, LoopXCommand } from './cli.ts'
 import {
@@ -24,6 +25,7 @@ import {
   resolvePluginLoopXCommand,
 } from './managed-runtime.ts'
 import type { LoopXRuntimeOptions } from './managed-runtime.ts'
+import { readGoalBarBinding } from './goalbar/read-model.ts'
 
 export const name = 'dsh-loopx-init-command'
 export const inject = ['commands']
@@ -688,6 +690,79 @@ export function registerLoopXInitCommand(
   })
 }
 
+/** Register the deterministic `/loopx-add <task>` todo-capture command. */
+export function registerLoopXAddCommand(
+  ctx: Context,
+  options: LoopXInitOptions = {},
+): void {
+  ctx.commands.register({
+    name: 'loopx-add',
+    description: 'add a task to this Session\'s bound LoopX Goal',
+    recordInput: false,
+    async handler(invocation): Promise<CommandResult> {
+      const text = invocation.rawInput.trim()
+      if (text.length === 0) {
+        return { kind: 'error', text: 'Usage: /loopx-add <task text>' }
+      }
+      const agent = invocation.agent
+      const sessionId = String(agent.id)
+      const cwd = agent.session.header.cwd
+      if (typeof cwd !== 'string' || cwd.length === 0) {
+        return { kind: 'error', text: 'LOOPX_ADD_FAILED: the Session has no project directory.' }
+      }
+      try {
+        const command = await resolvePluginLoopXCommand({
+          ...options,
+          signal: invocation.signal,
+        })
+        const binding = await readGoalBarBinding({
+          command,
+          cwd,
+          runner: options.runner,
+          signal: invocation.signal,
+          env: options.env,
+          retryDelaysMs: [0, 0],
+        }, sessionId)
+        if (binding.kind !== 'bound') {
+          return {
+            kind: 'error',
+            text: 'LOOPX_ADD_FAILED: this Session is not bound to a LoopX Goal. Run /loopx <task> first.',
+          }
+        }
+        await runJsonMutationCommand(command, [
+          '--registry', '.loopx/registry.json',
+          '--format', 'json',
+          'todo', 'add',
+          '--goal-id', binding.goalId,
+          '--role', 'agent',
+          '--claimed-by', binding.loopxAgentId,
+          '--task-class', 'advancement_task',
+          '--text', text,
+        ], {
+          runner: options.runner,
+          cwd,
+          env: options.env,
+          timeoutMs: 20_000,
+          maxOutputBytes: 1024 * 1024,
+          validate: payload => (payload as { readonly ok?: unknown }).ok === true,
+        })
+        return {
+          kind: 'success',
+          text: `LoopX todo added to ${binding.goalId}.`,
+        }
+      } catch (error: unknown) {
+        if (cancelled(error, invocation.signal)) {
+          return { kind: 'error', text: 'LOOPX_ADD_CANCELLED: adding the task was cancelled.' }
+        }
+        return {
+          kind: 'error',
+          text: `LOOPX_ADD_FAILED: ${error instanceof Error ? error.message : 'unknown failure'}.`,
+        }
+      }
+    },
+  })
+}
+
 function automaticFailure(error: unknown): string {
   if (error instanceof LoopXInitError) {
     return [
@@ -729,6 +804,7 @@ function bootstrapFailureStatus(error: unknown): LoopXBootstrapStatus {
  */
 export async function apply(ctx: Context, options: LoopXInitOptions = {}): Promise<void> {
   registerLoopXInitCommand(ctx, options)
+  registerLoopXAddCommand(ctx, options)
   let status: LoopXBootstrapStatus
   try {
     await initializeLoopX(options)
