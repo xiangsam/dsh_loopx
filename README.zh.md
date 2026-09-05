@@ -170,7 +170,7 @@ registry、绑定、skills，或插件管理的 runtime。
 
 ```bash
 loopx workflow-skills --uninstall \
-  --skills-dir "${DSH_HOME:-$HOME/Library/Application Support/dsh-desktop/harness}/skills"
+  --skills-dir "${DSH_HOME:-$HOME/.dsh}/skills"
 ```
 
 工作流 skills 装进 DSH 自己的 skill 根目录（`$DSH_HOME/skills`），所以只归 DSH 用，

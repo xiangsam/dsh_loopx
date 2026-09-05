@@ -183,7 +183,7 @@ Remove only LoopX-managed skills:
 
 ```bash
 loopx workflow-skills --uninstall \
-  --skills-dir "${DSH_HOME:-$HOME/Library/Application Support/dsh-desktop/harness}/skills"
+  --skills-dir "${DSH_HOME:-$HOME/.dsh}/skills"
 ```
 
 The workflow skills are installed into DSH's own skill root (`$DSH_HOME/skills`), so they are

@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { readFile, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -17,6 +19,7 @@ import {
   MANAGED_SITE_PACKAGES_NAME,
   pluginPythonCandidates,
   pluginRuntimeDir,
+  pluginRuntimeRoot,
   pluginSkillsDir,
   resolvePluginLoopXCommand,
 } from './managed-runtime.ts'
@@ -302,6 +305,28 @@ async function installCli(
   return { pythonBin: python, launcherPath }
 }
 
+/** Keep the DSH-owned LoopX runtime root pinned across installs/upgrades. */
+async function applyLoopXRuntimeRootPatch(
+  runtimeDir: string,
+  options: LoopXInitOptions,
+): Promise<void> {
+  const pathsPy = join(runtimeDir, MANAGED_SITE_PACKAGES_NAME, 'loopx', 'paths.py')
+  const root = pluginRuntimeRoot(options)
+  const isHomeDefault = root === join(homedir(), '.loopx')
+  const targetExpr = isHomeDefault
+    ? 'DEFAULT_RUNTIME_ROOT = Path.home() / ".loopx"'
+    : `DEFAULT_RUNTIME_ROOT = Path(${JSON.stringify(root)})`
+  const sourceExpr = 'DEFAULT_RUNTIME_ROOT = Path.home() / ".codex" / "loopx"'
+  let source: string
+  try {
+    source = await readFile(pathsPy, 'utf8')
+  } catch {
+    return
+  }
+  const next = source.replace(sourceExpr, targetExpr)
+  if (next !== source) await writeFile(pathsPy, next, 'utf8')
+}
+
 /** Install/upgrade LoopX once when needed, then install and verify DSH skills. */
 export async function initializeLoopX(options: LoopXInitOptions = {}): Promise<LoopXInitSummary> {
   const skillsDir = resolve(options.skillsDir ?? pluginSkillsDir(options))
@@ -347,6 +372,10 @@ export async function initializeLoopX(options: LoopXInitOptions = {}): Promise<L
       )
     }
   }
+
+  // Re-pin the managed LoopX runtime root so a LoopX upgrade cannot silently
+  // revert it to the upstream ~/.codex/loopx default.
+  await applyLoopXRuntimeRootPatch(runtimeDir, effectiveOptions)
 
   let installed: Record<string, unknown>
   try {

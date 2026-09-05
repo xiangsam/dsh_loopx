@@ -59,10 +59,20 @@ export function pluginSkillsDir(options: LoopXRuntimeOptions): string {
 }
 
 export function pluginRuntimeDir(options: LoopXRuntimeOptions): string {
+  const dshHome = options.env?.DSH_HOME ?? process.env.DSH_HOME
   return resolve(
     options.runtimeDir
-      ?? join(pluginAgentsHome(options), 'runtime', 'dsh-loopx-plugin'),
+      ?? (dshHome?.trim()
+        ? join(dshHome.trim(), 'runtime', 'dsh-loopx-plugin')
+        : join(pluginAgentsHome(options), 'runtime', 'dsh-loopx-plugin')),
   )
+}
+
+/** LoopX global runtime root default. `~/.loopx` by default, overridable. */
+export function pluginRuntimeRoot(options: LoopXRuntimeOptions = {}): string {
+  const configured = options.env?.LOOPX_RUNTIME_ROOT
+    ?? process.env.LOOPX_RUNTIME_ROOT
+  return configured?.trim() ? resolve(configured) : join(homedir(), '.loopx')
 }
 
 /** Resolve the exact CLI surface shared by bootstrap, Driver, and GoalBar. */
