@@ -199,7 +199,10 @@ export function LoopXBoardView({
                   : t('board.workspace.body')}
               </p>
               {progress !== null && progress.total > 0 && (
-                <div className={styles.progressWrap}>
+                <div
+                  className={styles.progressWrap}
+                  data-goal={data.goalActivation}
+                >
                   <progress
                     className={styles.progress}
                     max={progress.total}
@@ -324,7 +327,10 @@ export function LoopXBoardView({
       ) : null}
 
       {data !== null && data.nextActionTitle !== null && (
-        <section className={styles.card}>
+        <section
+          className={styles.card}
+          data-action={data.nextActionKind ?? 'agent'}
+        >
           <div className={styles.header}>
             <div className={styles.nextMain}>
               <span className={styles.brand}>{t('board.next')}</span>

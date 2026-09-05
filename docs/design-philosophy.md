@@ -56,6 +56,17 @@ The plugin intentionally does **not** clone the LoopX dashboard:
   quota, evidence, CLI output, registry paths, and agent ids are excluded.** The
   UI never prints an agent id.
 
+### Visual treatment
+
+The panel is a read projection, not a rebuilt dashboard, and it is styled to stay
+that way: neutrals come from DSH tokens (so light/dark adapt), while a tiny set of
+plugin-scoped tokens expresses status. A live goal reads green, a paused goal
+reads muted, and a goal waiting on the user reads as an explicit danger
+"need you" state. The next-step card carries an accent rail that is green for
+agent work and red for a user gate, so the one action that blocks progress is
+unmistakable. Motion is limited to a slow status pulse and progress fill and is
+disabled under `prefers-reduced-motion`.
+
 ## Fail-closed behavior
 
 Reads are strict and fail closed:

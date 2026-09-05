@@ -1,4 +1,15 @@
+/*
+ * LoopX GoalBar composer dock.
+ * Mirrors the board's status tokens so the compact row and the full panel
+ * read as one system.
+ */
+
 .dock {
+  --loopx-active: #15803d;
+  --loopx-active-soft: rgba(21, 128, 61, 0.12);
+  --loopx-running: #16a34a;
+  --loopx-focus: var(--color-link, #0b6bd9);
+
   box-sizing: border-box;
   width: calc(
     100% - var(--dsh-composer-side-clearance, 0px) * 2 -
@@ -17,6 +28,15 @@
   );
 }
 
+@media (prefers-color-scheme: dark) {
+  .dock {
+    --loopx-active: #4ade80;
+    --loopx-active-soft: rgba(74, 222, 128, 0.15);
+    --loopx-running: #86efac;
+    --loopx-focus: var(--color-link, #6ea8ff);
+  }
+}
+
 .panel {
   box-sizing: border-box;
   width: 100%;
@@ -24,7 +44,8 @@
   background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   border-bottom: 0;
-  border-radius: 12px 12px 0 0;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -1px 10px rgba(16, 16, 16, 0.04);
   overflow: hidden;
 }
 
@@ -34,11 +55,11 @@
 
 .row {
   box-sizing: border-box;
-  min-height: 40px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px 4px 12px;
+  padding: 5px 8px 5px 13px;
 }
 
 .brand {
@@ -48,10 +69,11 @@
     var(--ds-font-family-code, "Geist Mono", "SFMono-Regular", monospace)
   );
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 16px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
 }
 
 .goalId {
@@ -72,11 +94,11 @@
 
 .progress {
   width: clamp(48px, 14vw, 120px);
-  height: 4px;
+  height: 5px;
   flex: 1 1 80px;
   overflow: hidden;
   appearance: none;
-  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+  color: var(--loopx-active);
   background: var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   border: 0;
   border-radius: 9999px;
@@ -90,13 +112,17 @@
 .progress::-webkit-progress-value {
   background: currentColor;
   border-radius: 9999px;
-  transition: width 160ms ease;
+  transition: width 180ms ease;
 }
 
 .progress::-moz-progress-bar {
   background: currentColor;
   border-radius: 9999px;
-  transition: width 160ms ease;
+  transition: width 180ms ease;
+}
+
+.progress[data-status="paused"] {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
 }
 
 .progressText,
@@ -134,14 +160,35 @@
   border-radius: 9999px;
 }
 
-.status[data-status="paused"] .statusMark {
-  background: transparent;
-  border-radius: 1px;
+.status[data-status="active"],
+.status[data-status="running"] {
+  color: var(--loopx-active);
 }
 
 .status[data-status="running"] .statusMark {
-  box-shadow: 0 0 0 2px var(--color-surface, var(--dsw-alias-bg-base, #fff));
-  outline: 1px solid currentColor;
+  background: var(--loopx-running);
+  border-color: var(--loopx-running);
+  animation: loopx-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes loopx-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--loopx-active-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--loopx-active-soft);
+  }
+}
+
+.status[data-status="paused"] .statusMark {
+  background: transparent;
+  border-color: currentColor;
+  border-radius: 1px;
+}
+
+.status[data-status="paused"] {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
 }
 
 .action,
@@ -152,14 +199,15 @@
   color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
   background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
   border: 1px solid var(--color-border, var(--dsw-alias-border-l2, #ebebeb));
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 5px 10px;
   font: inherit;
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .action:hover:not(:disabled),
@@ -169,7 +217,7 @@
 
 .action:focus-visible,
 .refresh:focus-visible {
-  outline: 2px solid var(--color-link, var(--dsw-alias-state-business-primary, #0070f3));
+  outline: 2px solid var(--loopx-focus);
   outline-offset: 2px;
 }
 
@@ -181,7 +229,7 @@
 
 .next {
   margin: 0;
-  padding: 0 12px 8px;
+  padding: 0 13px 9px;
   overflow: hidden;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
   font-size: 12px;
@@ -195,7 +243,7 @@
   align-items: flex-start;
   gap: 6px;
   margin: 0;
-  padding: 0 12px 8px;
+  padding: 0 13px 9px;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
   font-size: 12px;
   line-height: 16px;
@@ -237,8 +285,10 @@
 @media (prefers-reduced-motion: reduce) {
   .progress::-webkit-progress-value,
   .progress::-moz-progress-bar,
+  .status[data-status="running"] .statusMark,
   .action,
   .refresh {
+    animation: none;
     transition: none;
   }
 }

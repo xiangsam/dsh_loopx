@@ -78,6 +78,7 @@ export function LoopXGoalBar({
             className={styles.progress}
             max={empty ? 1 : snapshot.progress.total}
             value={snapshot.progress.processed}
+            data-status={status}
             aria-label={progressLabel}
           />
           <span className={styles.progressText} aria-hidden="true">

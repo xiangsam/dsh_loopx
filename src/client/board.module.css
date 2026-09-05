@@ -1,11 +1,26 @@
+/*
+ * LoopX board panel visual system.
+ *
+ * Status semantics are expressed with a small set of plugin-scoped tokens so
+ * the palette stays consistent between the board and the GoalBar dock. All
+ * neutrals come from DSH tokens (so light/dark adapt); semantic accents are
+ * tuned for dark mode via the prefers-color-scheme override below.
+ */
+
 .panel {
+  /* Plugin-scoped status tokens (cascade to every card inside). */
+  --loopx-active: #15803d;
+  --loopx-active-soft: rgba(21, 128, 61, 0.10);
+  --loopx-running: #16a34a;
+  --loopx-focus: var(--color-link, #0b6bd9);
+
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   height: 100%;
-  padding: 16px 20px 24px;
+  padding: 18px 22px 26px;
   overflow-y: auto;
   color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
   background: var(--color-canvas, var(--dsw-alias-bg-base, #fff));
@@ -15,26 +30,39 @@
   );
 }
 
-.card {
-  box-sizing: border-box;
-  padding: 14px 16px;
-  background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
-  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
-  border-radius: 12px;
+@media (prefers-color-scheme: dark) {
+  .panel {
+    --loopx-active: #4ade80;
+    --loopx-active-soft: rgba(74, 222, 128, 0.13);
+    --loopx-running: #86efac;
+    --loopx-focus: var(--color-link, #6ea8ff);
+  }
 }
 
+.card {
+  box-sizing: border-box;
+  padding: 16px 18px;
+  background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
+  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(16, 16, 16, 0.04),
+    0 4px 14px rgba(16, 16, 16, 0.04);
+}
+
+/* Goal header + next-step cards: a subtle accent rail communicates intent. */
 .header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
 
 .headerMain,
 .nextMain {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -50,7 +78,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .sectionMeta {
@@ -72,7 +100,7 @@
   );
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   line-height: 16px;
   text-transform: uppercase;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
@@ -90,7 +118,7 @@
   margin: 0;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .actions {
@@ -103,19 +131,37 @@
 .button,
 .primary {
   min-height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
+  padding: 0 13px;
+  border-radius: 9px;
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
   color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease,
+    box-shadow 150ms ease, transform 150ms ease;
+}
+
+.button:hover:not(:disabled),
+button.primary:hover:not(:disabled) {
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+}
+
+.button:focus-visible,
+.primary:focus-visible {
+  outline: 2px solid var(--loopx-focus);
+  outline-offset: 2px;
 }
 
 .primary {
   background: var(--color-ink, var(--dsw-alias-label-primary, #171717));
   border-color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
   color: var(--color-surface, var(--dsw-alias-bg-base, #fff));
+}
+
+.primary:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(16, 16, 16, 0.18);
 }
 
 .button:disabled,
@@ -131,7 +177,7 @@
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--color-danger, #ee0000);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--color-danger, #ee0000);
   font-size: 13px;
 }
@@ -149,13 +195,21 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
-  border-radius: 8px;
+  border-radius: 10px;
+  background: var(--color-surface, var(--dsw-alias-bg-base, #fff));
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.item:hover {
+  border-color: var(--color-border, var(--dsw-alias-border-l2, #d7d7d7));
+  box-shadow: 0 1px 3px rgba(16, 16, 16, 0.06);
 }
 
 .item[data-kind="user_gate"] {
   background: var(--color-surface-soft, var(--dsw-specific-tip, #f2f2f2));
+  border-color: var(--color-danger, #ee0000);
 }
 
 .itemRow {
@@ -185,25 +239,34 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 1px 8px;
+  padding: 2px 9px;
   border-radius: 9999px;
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 18px;
   white-space: nowrap;
 }
 
-.statusBadge[data-status="active"],
-.modeBadge[data-live="true"] {
-  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
-  border-color: var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+.statusBadge[data-status="active"] {
+  color: var(--loopx-active);
+  border-color: var(--loopx-active);
+  border-color: color-mix(in srgb, var(--loopx-active) 45%, transparent);
+  background: var(--loopx-active-soft);
 }
 
-.statusBadge[data-status="stopped"],
-.modeBadge[data-live="false"] {
+.statusBadge[data-status="stopped"] {
   color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
   background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+}
+
+.modeBadge[data-live="true"] {
+  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+}
+
+.modeBadge[data-live="false"] {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
 }
 
 .statusMark {
@@ -220,6 +283,23 @@
   border-radius: 1px;
 }
 
+.statusBadge[data-status="active"] .statusMark {
+  background: var(--loopx-active);
+  animation: loopx-pulse 2s ease-in-out infinite;
+}
+
+@keyframes loopx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 var(--loopx-active-soft);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 0 3px var(--loopx-active-soft);
+  }
+}
+
 /* Progress */
 .progressWrap {
   display: flex;
@@ -234,7 +314,7 @@
   flex: 1 1 auto;
   overflow: hidden;
   appearance: none;
-  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+  color: var(--loopx-active);
   background: var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   border: 0;
   border-radius: 9999px;
@@ -248,13 +328,13 @@
 .progress::-webkit-progress-value {
   background: currentColor;
   border-radius: 9999px;
-  transition: width 160ms ease;
+  transition: width 180ms ease;
 }
 
 .progress::-moz-progress-bar {
   background: currentColor;
   border-radius: 9999px;
-  transition: width 160ms ease;
+  transition: width 180ms ease;
 }
 
 .progressText {
@@ -270,19 +350,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+.progressWrap[data-goal="stopped"] .progress {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+}
+
 /* Summary chips */
 .summary {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .summaryItem {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 10px;
+  padding: 3px 11px;
   border-radius: 9999px;
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   font-size: 12px;
@@ -297,6 +381,8 @@
 .summaryItem[data-kind="gate"] {
   color: var(--color-danger, #ee0000);
   border-color: var(--color-danger, #ee0000);
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+  background: color-mix(in srgb, var(--color-danger, #ee0000) 6%, transparent);
 }
 
 .summaryItem[data-kind="done"] {
@@ -307,7 +393,7 @@
 .groups {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   margin-top: 4px;
 }
 
@@ -327,7 +413,7 @@
 .groupLabel {
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
 }
@@ -354,7 +440,7 @@
   border-radius: 9999px;
   border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 18px;
   white-space: nowrap;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
@@ -378,10 +464,42 @@
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
 }
 
-.empty {
-  margin: 12px 0 0;
-  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
-  font-size: 13px;
+/* Next-step card accent rail */
+.nextMain {
+  position: relative;
+  padding-left: 0;
+}
+
+.card[data-action] {
+  position: relative;
+  overflow: hidden;
+}
+
+.card[data-action]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 9999px;
+  background: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+  opacity: 0.25;
+}
+
+.card[data-action="agent"]::before {
+  background: var(--loopx-active);
+  opacity: 1;
+}
+
+.card[data-action="user_gate"]::before {
+  background: var(--color-danger, #ee0000);
+  opacity: 1;
+}
+
+.card[data-action="user_gate"] {
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+  background: color-mix(in srgb, var(--color-danger, #ee0000) 4%, var(--color-surface, #fff));
 }
 
 /* Loading skeleton */
@@ -423,16 +541,32 @@
   }
 }
 
+.empty {
+  margin: 12px 0 0;
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+  font-size: 13px;
+  text-align: center;
+  padding: 6px 0;
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
+  }
+
+  .actions {
+    width: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .progress::-webkit-progress-value,
   .progress::-moz-progress-bar,
-  .skeletonBar {
+  .skeletonBar,
+  .statusBadge[data-status="active"] .statusMark,
+  .button,
+  .primary,
+  .item {
     animation: none;
     transition: none;
   }
