@@ -94,6 +94,9 @@ export function LoopXBoardView({
   const open = openTasks(tasks)
   const doneCount = tasks.filter(task => task.status === 'done').length
   const gateCount = open.filter(task => isGateTask(task)).length
+  const inProgressCount = open.filter(task => groupKind(task) === 'in_progress').length
+  const waitingCount = open.filter(task => groupKind(task) === 'waiting').length
+  const scheduledCount = open.filter(task => groupKind(task) === 'scheduled').length
   const groups = groupOpenTasks(open)
   const live = bound && data.sessionBound
   const choosing = board.goals.length > 0
@@ -224,6 +227,9 @@ export function LoopXBoardView({
                   type="button"
                   className={data.goalActivation === 'stopped' ? styles.primary : styles.button}
                   disabled={board.pending}
+                  title={data.goalActivation === 'stopped'
+                    ? t('action.start.tip')
+                    : t('action.pause.tip')}
                   onClick={board.toggleActivation}
                 >
                   {data.goalActivation === 'stopped' ? t('action.start') : t('action.pause')}
@@ -234,6 +240,7 @@ export function LoopXBoardView({
                   type="button"
                   className={styles.button}
                   disabled={board.pending}
+                  title={t('action.unbind.tip')}
                   onClick={board.unbindSession}
                 >
                   {t('board.unbind')}
@@ -309,16 +316,31 @@ export function LoopXBoardView({
               <span className={styles.summaryItem} data-kind="open">
                 {t('board.summary.open', { count: open.length })}
               </span>
-              <span className={styles.summaryItem} data-kind="done">
-                {t('board.summary.done', { count: doneCount })}
-              </span>
               <span className={styles.summaryItem} data-kind="gate">
                 {t('board.summary.gate', { count: gateCount })}
+              </span>
+              {inProgressCount > 0 && (
+                <span className={styles.summaryItem} data-kind="in_progress">
+                  {t('board.summary.in_progress', { count: inProgressCount })}
+                </span>
+              )}
+              {waitingCount > 0 && (
+                <span className={styles.summaryItem} data-kind="waiting">
+                  {t('board.summary.waiting', { count: waitingCount })}
+                </span>
+              )}
+              {scheduledCount > 0 && (
+                <span className={styles.summaryItem} data-kind="scheduled">
+                  {t('board.summary.scheduled', { count: scheduledCount })}
+                </span>
+              )}
+              <span className={styles.summaryItem} data-kind="done">
+                {t('board.summary.done', { count: doneCount })}
               </span>
             </div>
           )}
         </section>
-      ) : !choosing && !showSkeleton ? (
+      ) : !choosing && !showSkeleton && !board.error ? (
         <section className={styles.card}>
           <span className={styles.brand}>LoopX</span>
           <h2 className={styles.title}>{t('board.unbound.title')}</h2>

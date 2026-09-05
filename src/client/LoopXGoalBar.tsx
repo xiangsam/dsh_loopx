@@ -92,6 +92,9 @@ export function LoopXGoalBar({
             type="button"
             className={styles.action}
             disabled={goalBar.actionDisabled}
+            title={goalBar.action === 'start'
+              ? t('action.start.tip')
+              : t('action.pause.tip')}
             onClick={() => {
               if (goalBar.action !== null) goalBar.requestAction(goalBar.action)
             }}
@@ -102,6 +105,7 @@ export function LoopXGoalBar({
             type="button"
             className={styles.action}
             disabled={goalBar.unbindDisabled}
+            title={t('action.unbind.tip')}
             onClick={() => { goalBar.requestUnbind() }}
           >
             {t('board.unbind')}

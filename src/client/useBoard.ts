@@ -26,6 +26,18 @@ export interface UseBoardResult {
   readonly deleteGoal: (goalId: string, loopxAgentId: string) => void
 }
 
+interface BoardCacheEntry {
+  readonly data: BoardDataSnapshotV1 | null
+  readonly goals: readonly BoardGoalChoiceV1[]
+}
+
+/**
+ * Last-good projection per Session id. Opening the LoopX tab again within the
+ * same live Session reuses this instead of flashing a fresh "not bound" state
+ * while the first CLI read is still in flight.
+ */
+const boardCache = new Map<string, BoardCacheEntry>()
+
 /**
  * Keep the session-bound board aligned with LoopX source revisions.
  * Binding appearing mid-session, todo completion, and Start/Pause all
@@ -62,6 +74,7 @@ export function useBoard({
     if (outcome.ok && outcome.response.result.kind === 'ready') {
       dataRef.current = outcome.response.result.data
       goalsRef.current = []
+      boardCache.set(sessionId, { data: outcome.response.result.data, goals: [] })
       setData(outcome.response.result.data)
       setGoals([])
       setError(false)
@@ -70,6 +83,7 @@ export function useBoard({
     if (outcome.ok && outcome.response.result.kind === 'choose') {
       dataRef.current = null
       goalsRef.current = outcome.response.result.goals
+      boardCache.set(sessionId, { data: null, goals: outcome.response.result.goals })
       setData(null)
       setGoals(outcome.response.result.goals)
       setError(false)
@@ -249,9 +263,14 @@ export function useBoard({
 
   useEffect(() => {
     sessionRef.current = sessionId
-    dataRef.current = null
+    // Seed the last-good projection so re-opening the tab renders immediately
+    // instead of flashing nothing while the first CLI read is in flight.
+    const cached = boardCache.get(sessionId)
+    dataRef.current = cached?.data ?? null
+    goalsRef.current = cached?.goals ?? []
     pendingRef.current = false
-    setData(null)
+    setData(cached?.data ?? null)
+    setGoals(cached?.goals ?? [])
     setError(false)
     setPending(false)
     void runCycle(replaceGeneration())

@@ -389,6 +389,19 @@ button.primary:hover:not(:disabled) {
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
 }
 
+.summaryItem[data-kind="in_progress"] {
+  color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+  border-color: color-mix(in srgb, var(--color-link, #0b6bd9) 40%, transparent);
+}
+
+.summaryItem[data-kind="waiting"] {
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+}
+
+.summaryItem[data-kind="scheduled"] {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+}
+
 /* Grouped open work */
 .groups {
   display: flex;

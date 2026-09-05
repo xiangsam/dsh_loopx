@@ -230,7 +230,7 @@ describe('LoopXGoalBar presentation', () => {
       const region = view.container.querySelector('[aria-label="LoopX Goal status"]')
       expect(region?.textContent).toContain(status)
       expect(button(view.container, action).disabled).toBe(disabled)
-      expect(button(view.container, 'Leave this chat').disabled).toBe(false)
+      expect(button(view.container, 'Unbind this chat').disabled).toBe(false)
       expect(view.container.querySelector('[title]')?.getAttribute('title')).toBe(goalId)
       expect(view.container.querySelector('progress')?.getAttribute('aria-label'))
         .toBe('2 / 5')
