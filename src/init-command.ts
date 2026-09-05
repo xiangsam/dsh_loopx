@@ -371,6 +371,43 @@ async function applyLoopXRuntimeRootPatch(
   await patchLoopXHardcodedRuntimeRoots(sitePackages)
 }
 
+const OWNER_SESSION_SKILL_MARKER = '<!-- dsh-loopx-owner-session -->'
+
+const OWNER_SESSION_SKILL_SECTION = `
+
+${OWNER_SESSION_SKILL_MARKER}
+
+## DSH owner-session task capture
+
+When this exact Session is already the bound, live driver of a LoopX Goal (the
+GoalBar reads "Driving in this chat"), and the user sends a concrete new task
+WITHOUT the \`/loopx\` prefix, treat it as new work for that existing Goal:
+
+1. Confirm the binding with \`resolve-agent-thread\`; use the exact bound
+   Goal/Agent pair. Do NOT bootstrap a new Goal.
+2. Record it as an open todo on that Goal, then continue working on it:
+   \`loopx todo add --goal-id <goal-id> --project . --role agent --claimed-by <agent-id> --task-class advancement_task --text '<the task>'\`
+3. The GoalBar and the LoopX panel then reflect it, and the Driver continues it
+   automatically.
+
+If the user's message is a reply, question, approval, or correction (not a
+standalone new task), do NOT add a todo — just respond normally. Use \`/loopx\`
+only to start a brand-new Goal or to re-enter the guided start-goal flow.
+`
+
+/** Append the DSH owner-session rule to the generated entry skill. */
+async function ensureOwnerSessionSkillNote(skillsDir: string): Promise<void> {
+  const skillPath = join(skillsDir, 'loopx', 'SKILL.md')
+  let source: string
+  try {
+    source = await readFile(skillPath, 'utf8')
+  } catch {
+    return
+  }
+  if (source.includes(OWNER_SESSION_SKILL_MARKER)) return
+  await writeFile(skillPath, `${source.trimEnd()}\n${OWNER_SESSION_SKILL_SECTION}\n`, 'utf8')
+}
+
 /** Install/upgrade LoopX once when needed, then install and verify DSH skills. */
 export async function initializeLoopX(options: LoopXInitOptions = {}): Promise<LoopXInitSummary> {
   const skillsDir = resolve(options.skillsDir ?? pluginSkillsDir(options))
@@ -484,6 +521,10 @@ export async function initializeLoopX(options: LoopXInitOptions = {}): Promise<L
       'readback_mismatch',
     )
   }
+
+  // Keep the DSH owner-session rule present even after the loopx CLI rewrites
+  // the generated entry skill.
+  await ensureOwnerSessionSkillNote(skillsDir)
 
   return {
     cliVersion: command.version,
