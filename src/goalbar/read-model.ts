@@ -716,6 +716,10 @@ const emptyBoard = (sessionId: string): BoardDataSnapshotV1 => ({
   tasks: [],
   nextActionTitle: null,
   nextActionKind: null,
+  goalTitle: null,
+  domain: null,
+  laneCount: null,
+  bindingCount: null,
 })
 
 export function decodeUniqueActiveProjectGoal(
@@ -781,6 +785,79 @@ async function readWorkspaceGoals(
   }
 }
 
+export interface GoalHeading {
+  readonly goalTitle: string | null
+  readonly domain: string | null
+  readonly laneCount: number | null
+  readonly bindingCount: number | null
+}
+
+const emptyHeading: GoalHeading = {
+  goalTitle: null,
+  domain: null,
+  laneCount: null,
+  bindingCount: null,
+}
+
+function headingSlice(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || /[\u0000-\u001f\u007f]/u.test(trimmed)) return null
+  const chars = [...trimmed]
+  return chars.length <= max ? trimmed : chars.slice(0, max).join('')
+}
+
+function headingCount(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0
+}
+
+/** Decode the goal's public heading (title, domain, lane/binding counts) from a `loopx history` projection. */
+export function decodeGoalHeading(
+  value: unknown,
+  expectedGoalId: string,
+): GoalHeading | undefined {
+  const input = record(value)
+  const goals = Array.isArray(input?.goals) ? input.goals.map(record) : []
+  const goal = goals.find(candidate => candidate?.id === expectedGoalId)
+  if (goal === undefined) return undefined
+  const coordination = record(goal.coordination)
+  const agents = Array.isArray(goal.registered_agents)
+    ? goal.registered_agents
+    : Array.isArray(coordination?.registered_agents)
+      ? coordination.registered_agents
+      : []
+  const bindings = Array.isArray(coordination?.thread_agent_bindings)
+    ? coordination.thread_agent_bindings
+    : Array.isArray(goal.thread_agent_bindings)
+      ? goal.thread_agent_bindings
+      : []
+  return {
+    goalTitle: headingSlice(goal.display_name, BOARD_TITLE_MAX),
+    domain: headingSlice(goal.domain, 64),
+    laneCount: headingCount(agents),
+    bindingCount: headingCount(bindings),
+  }
+}
+
+/** Best-effort goal heading: a failure or missing goal degrades to nulls, never a board fault. */
+async function readGoalHeading(
+  options: GoalBarCliReadOptions,
+  goalId: string,
+): Promise<GoalHeading> {
+  try {
+    const result = await executeJsonRead(options, [
+      '--registry', GOALBAR_PROJECT_REGISTRY,
+      '--format', 'json',
+      'history',
+      '--goal-id', goalId,
+      '--limit', '1',
+    ])
+    return decodeGoalHeading(result.payload, goalId) ?? emptyHeading
+  } catch {
+    return emptyHeading
+  }
+}
+
 export async function readBoardProjection(
   options: GoalBarCliReadOptions,
   sessionId: string,
@@ -828,10 +905,11 @@ export async function readBoardProjection(
     }
   }
 
-  const [activation, agentResult, userResult] = await Promise.all([
+  const [activation, agentResult, userResult, heading] = await Promise.all([
     readGoalBarActivation(options, goalId),
     listTodos('agent'),
     listTodos('user'),
+    readGoalHeading(options, goalId),
   ])
   if (activation.kind === 'fault') return activation
   if ('kind' in agentResult && agentResult.kind === 'fault') return agentResult
@@ -877,6 +955,7 @@ export async function readBoardProjection(
       tasks,
       nextActionTitle: nextOpen?.title ?? null,
       nextActionKind,
+      ...heading,
     },
   }
 }

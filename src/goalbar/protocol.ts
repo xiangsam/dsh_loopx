@@ -204,6 +204,10 @@ export interface BoardDataSnapshotV1 {
   readonly tasks: readonly BoardTaskV1[]
   readonly nextActionTitle: string | null
   readonly nextActionKind: BoardNextActionKindV1 | null
+  readonly goalTitle: string | null
+  readonly domain: string | null
+  readonly laneCount: number | null
+  readonly bindingCount: number | null
 }
 
 export type GoalBarBoardDataResultV1 =
@@ -613,6 +617,18 @@ function isBoardTitle(value: unknown): value is string {
     && !/[\u0000-\u001f\u007f]/u.test(value)
 }
 
+function isBoardDomain(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length > 0
+    && [...value].length <= 64
+    && value.trim() === value
+    && !/[\u0000-\u001f\u007f\s]/u.test(value)
+}
+
+function isBoardCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
 function decodeBoardTask(value: unknown): BoardTaskV1 | undefined {
   const input = exactRecord(value, ['id', 'title', 'status', 'taskClass', 'claimedBy'])
   return input !== undefined
@@ -650,10 +666,18 @@ export function decodeBoardDataSnapshotV1(
     'tasks',
     'nextActionTitle',
     'nextActionKind',
+    'goalTitle',
+    'domain',
+    'laneCount',
+    'bindingCount',
   ])
   if (input === undefined || input.sessionId !== sessionId || !isGoalBarSessionId(input.sessionId)) {
     return undefined
   }
+  if (input.goalTitle !== null && !isBoardTitle(input.goalTitle)) return undefined
+  if (input.domain !== null && !isBoardDomain(input.domain)) return undefined
+  if (input.laneCount !== null && !isBoardCount(input.laneCount)) return undefined
+  if (input.bindingCount !== null && !isBoardCount(input.bindingCount)) return undefined
   let progress: GoalBarProgressV1 | null
   if (input.progress === null) {
     progress = null
@@ -696,7 +720,11 @@ export function decodeBoardDataSnapshotV1(
       || input.loopxAgentId !== null
       || input.goalActivation !== null
       || progress !== null
-      || nextActionKind !== null) {
+      || nextActionKind !== null
+      || input.goalTitle !== null
+      || input.domain !== null
+      || input.laneCount !== null
+      || input.bindingCount !== null) {
       return undefined
     }
     return {
@@ -709,6 +737,10 @@ export function decodeBoardDataSnapshotV1(
       tasks,
       nextActionTitle: null,
       nextActionKind: null,
+      goalTitle: null,
+      domain: null,
+      laneCount: null,
+      bindingCount: null,
     }
   }
   if (!isGoalBarGoalId(input.goalId)
@@ -727,6 +759,10 @@ export function decodeBoardDataSnapshotV1(
     tasks,
     nextActionTitle,
     nextActionKind,
+    goalTitle: input.goalTitle,
+    domain: input.domain,
+    laneCount: input.laneCount,
+    bindingCount: input.bindingCount,
   }
 }
 

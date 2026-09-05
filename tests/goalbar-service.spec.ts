@@ -1179,6 +1179,10 @@ describe('GoalBar boardData', () => {
         tasks: [],
         nextActionTitle: null,
         nextActionKind: null,
+        goalTitle: null,
+        domain: null,
+        laneCount: null,
+        bindingCount: null,
       },
     })
     await host.service.dispose()
@@ -1209,6 +1213,10 @@ describe('GoalBar boardData', () => {
         tasks: [],
         nextActionTitle: null,
         nextActionKind: null,
+        goalTitle: null,
+        domain: null,
+        laneCount: null,
+        bindingCount: null,
       },
     })
     await host.service.dispose()

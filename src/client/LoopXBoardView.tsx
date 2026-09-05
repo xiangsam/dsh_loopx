@@ -74,6 +74,13 @@ function groupCountLabel(group: BoardGroup): string {
   return String(group.tasks.length)
 }
 
+function taskClassTag(task: BoardTaskV1, t: GoalBarTranslate): string | null {
+  if (task.taskClass === 'user_gate' || task.taskClass === 'user_action') return t('board.task.gate')
+  if (task.taskClass === 'continuous_monitor') return t('board.task.monitor')
+  if (task.taskClass === 'blocker') return t('board.task.blocked')
+  return null
+}
+
 function percentage(progress: { processed: number; total: number }): number {
   if (progress.total <= 0) return 0
   return Math.min(100, Math.round((progress.processed / progress.total) * 100))
@@ -190,7 +197,27 @@ export function LoopXBoardView({
                   {live ? t('board.mode.drive') : t('board.mode.watch')}
                 </span>
               </div>
-              <h2 className={styles.title}>{t('goal.label', { goalId: data.goalId })}</h2>
+              <h2 className={styles.title}>{data.goalTitle ?? data.goalId}</h2>
+              <div className={styles.goalMeta}>
+                <span className={styles.metaItem} data-kind="id">
+                  {t('board.goal.id', { goalId: data.goalId })}
+                </span>
+                {data.domain !== null && (
+                  <span className={styles.metaItem} data-kind="domain">
+                    {data.domain}
+                  </span>
+                )}
+                {data.laneCount !== null && (
+                  <span className={styles.metaItem} data-kind="lanes">
+                    {t('board.meta.lanes', { count: data.laneCount })}
+                  </span>
+                )}
+                {data.bindingCount !== null && (
+                  <span className={styles.metaItem} data-kind="chats">
+                    {t('board.meta.chats', { count: data.bindingCount })}
+                  </span>
+                )}
+              </div>
               <p className={styles.body}>
                 {live
                   ? (progress === null
@@ -414,6 +441,16 @@ export function LoopXBoardView({
                             {groupLabel(group, t)}
                           </span>
                         </div>
+                        {taskClassTag(task, t) !== null && (
+                          <div className={styles.itemMeta}>
+                            <span
+                              className={styles.taskTag}
+                              data-kind={task.taskClass ?? undefined}
+                            >
+                              {taskClassTag(task, t)}
+                            </span>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>

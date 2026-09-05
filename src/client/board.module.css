@@ -121,6 +121,42 @@
   line-height: 1.55;
 }
 
+/* Goal meta line (id, domain, lanes, chats) */
+.goalMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+  font-family: var(
+    --font-mono,
+    var(--ds-font-family-code, "Geist Mono", "SFMono-Regular", monospace)
+  );
+}
+
+.metaItem[data-kind="id"] {
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+}
+
+.metaItem[data-kind="domain"] {
+  padding: 1px 8px;
+  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+  border-radius: 9999px;
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+  font-family: var(
+    --font-sans,
+    var(--dsw-font-family, "Geist", "Inter", "Helvetica Neue", Arial, sans-serif)
+  );
+}
+
 .actions {
   display: flex;
   flex: none;
@@ -402,18 +438,32 @@ button.primary:hover:not(:disabled) {
   color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
 }
 
-/* Grouped open work */
+/* Grouped open work — column grid */
 .groups {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
   margin-top: 4px;
+  align-items: start;
 }
 
 .group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+  border-radius: 11px;
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+}
+
+.group[data-kind="gate"] {
+  border-color: var(--color-danger, #ee0000);
+  background: var(--color-surface-soft, var(--dsw-alias-interactive-bg-hover, #f2f2f2));
+}
+
+.group[data-kind="in_progress"] {
+  border-color: color-mix(in srgb, var(--color-link, #0b6bd9) 45%, transparent);
 }
 
 .groupHeader {
@@ -429,6 +479,10 @@ button.primary:hover:not(:disabled) {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+}
+
+.group[data-kind="gate"] .groupLabel {
+  color: var(--color-danger, #ee0000);
 }
 
 .groupCount {
@@ -466,6 +520,42 @@ button.primary:hover:not(:disabled) {
 
 .badge[data-status="in_progress"] {
   color: var(--color-ink, var(--dsw-alias-label-primary, #171717));
+}
+
+/* Task-class tag (needs-you / watching / blocked) */
+.taskTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border, var(--dsw-alias-border-l1, #ebebeb));
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  color: var(--color-body, var(--dsw-alias-label-secondary, #4d4d4d));
+}
+
+.taskTag[data-kind="user_gate"],
+.taskTag[data-kind="user_action"] {
+  color: var(--color-danger, #ee0000);
+  border-color: var(--color-danger, #ee0000);
+}
+
+.taskTag[data-kind="blocker"] {
+  color: var(--color-danger, #ee0000);
+  border-color: var(--color-danger, #ee0000);
+}
+
+.taskTag[data-kind="continuous_monitor"] {
+  color: var(--color-muted, var(--dsw-alias-label-tertiary, #8f8f8f));
+}
+
+.itemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .badge[data-status="waiting"] {

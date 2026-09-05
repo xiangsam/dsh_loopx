@@ -197,6 +197,10 @@ describe('GoalBar boardData V2', () => {
       nextActionTitle: 'Bind the live session',
       nextActionKind: 'agent' as const,
       sessionBound: true,
+      goalTitle: 'Build the panel',
+      domain: 'project-goal-control-plane',
+      laneCount: 1,
+      bindingCount: 1,
     }
     expect(decodeGoalBarResponseV1(boardRequest, response(boardRequest, {
       kind: 'ready', data,
