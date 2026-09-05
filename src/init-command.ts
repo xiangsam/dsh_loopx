@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -305,12 +305,55 @@ async function installCli(
   return { pythonBin: python, launcherPath }
 }
 
-/** Keep the DSH-owned LoopX runtime root pinned across installs/upgrades. */
+const LOOPX_HARDCODED_SOURCE = '.codex/loopx'
+const LOOPX_HARDCODED_TARGET = '.loopx'
+const LOOPX_HARDCODED_PY_SOURCE = '".codex" / "loopx"'
+const LOOPX_HARDCODED_PY_TARGET = '".loopx"'
+
+/**
+ * LoopX ships several hardcoded `~/.codex/loopx` literals (prompt templates,
+ * probes, runtime fallbacks) that a `paths.py` patch alone cannot reach.
+ * Rewrite them to the DSH runtime root so generated commands (e.g. the
+ * continuation heartbeat) never advertise the upstream Codex path.
+ */
+async function patchLoopXHardcodedRuntimeRoots(sitePackages: string): Promise<void> {
+  const stack = [sitePackages]
+  while (stack.length > 0) {
+    const dir = stack.pop() as string
+    let entries
+    try {
+      entries = await readdir(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name === '__pycache__' || entry.name === 'testing') continue
+        stack.push(full)
+      } else if (entry.isFile() && entry.name.endsWith('.py')) {
+        let source: string
+        try {
+          source = await readFile(full, 'utf8')
+        } catch {
+          continue
+        }
+        const next = source
+          .replaceAll(LOOPX_HARDCODED_PY_SOURCE, LOOPX_HARDCODED_PY_TARGET)
+          .replaceAll(LOOPX_HARDCODED_SOURCE, LOOPX_HARDCODED_TARGET)
+        if (next !== source) await writeFile(full, next, 'utf8')
+      }
+    }
+  }
+}
+
+/** Keep the DSH-owned LoopX runtime root and its generated paths pinned. */
 async function applyLoopXRuntimeRootPatch(
   runtimeDir: string,
   options: LoopXInitOptions,
 ): Promise<void> {
-  const pathsPy = join(runtimeDir, MANAGED_SITE_PACKAGES_NAME, 'loopx', 'paths.py')
+  const sitePackages = join(runtimeDir, MANAGED_SITE_PACKAGES_NAME)
+  const pathsPy = join(sitePackages, 'loopx', 'paths.py')
   const root = pluginRuntimeRoot(options)
   const isHomeDefault = root === join(homedir(), '.loopx')
   const targetExpr = isHomeDefault
@@ -325,6 +368,7 @@ async function applyLoopXRuntimeRootPatch(
   }
   const next = source.replace(sourceExpr, targetExpr)
   if (next !== source) await writeFile(pathsPy, next, 'utf8')
+  await patchLoopXHardcodedRuntimeRoots(sitePackages)
 }
 
 /** Install/upgrade LoopX once when needed, then install and verify DSH skills. */
