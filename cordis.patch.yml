@@ -20,3 +20,12 @@
 - id: web-runtime
   name: '@deepseek-ai/dsh-web-app'
   inject: [webStartup, loopxBootstrap]
+
+# connection.rpc.handle() scopes its channel route to the connection plugin's
+# own context. dsh >= 0.1.5-alpha no longer injects webServer into the
+# connection module (it injects credentials instead), so the GoalBar /loopx
+# channel must restore that inject at the row level; dsh 0.1.1-rc.x already
+# carried it in the module, where this row-level add is a harmless duplicate.
+- id: connection
+  name: '@deepseek-ai/dsh-client-connection'
+  inject: [webRuntime, webServer]
