@@ -61,6 +61,14 @@ it writes an isolated copy under `$DSH_AGENTS_HOME/runtime/dsh-loopx-plugin`
 (default `~/.agents/runtime/dsh-loopx-plugin`) and never mutates the system
 Python environment. The published plugin requires **LoopX 0.5.4 or newer**.
 
+**DSH compatibility**: verified against **0.1.5-alpha.2** and 0.1.1-rc.x.
+In 0.1.5-alpha.2 `dsh-client-connection` no longer injects `webServer` at the
+module level (it injects `credentials` instead), while
+`connection.rpc.handle()` lands its channel route on the connection plugin's
+own fiber; this plugin therefore restores `inject: [webRuntime, webServer]`
+on the `connection` loader row in `cordis.patch.yml` (a harmless duplicate on
+older releases).
+
 ## Install
 
 ### Prebuilt release (published tarball)

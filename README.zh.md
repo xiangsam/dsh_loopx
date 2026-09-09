@@ -54,6 +54,12 @@ LoopX skills，并直接调用 LoopX CLI。
 `~/.agents/runtime/dsh-loopx-plugin`），不会改系统 Python。
 已发布插件要求 **LoopX 0.5.4 或更新**。
 
+**DSH 兼容性**：已验证 **0.1.5-alpha.2** 与 0.1.1-rc.x。0.1.5-alpha.2 的
+`dsh-client-connection` 不再在模块级注入 `webServer`（改为 `credentials`），
+而 `connection.rpc.handle()` 会把通道路由落在 connection 自己的 fiber 上；
+本插件因此在 `cordis.patch.yml` 里给 `connection` 这一行 loader 恢复了
+`inject: [webRuntime, webServer]`（对旧版是无害冗余）。
+
 ## 安装
 
 ### 预构建包（已发布的 tarball）
