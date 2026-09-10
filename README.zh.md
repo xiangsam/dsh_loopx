@@ -12,7 +12,7 @@ English: [README.md](README.md)。
 GoalBar 怎么挂到对话上：[docs/session-goal-surface.zh.md](docs/session-goal-surface.zh.md)。
 设计说明（模型 + 单一 Agent 规则）：[docs/design-philosophy.zh.md](docs/design-philosophy.zh.md)。
 
-当前版本：**0.1.2**，已发布到 GitHub Packages：`@xiangsam/dsh-loopx-plugin`。
+当前版本：**0.1.3**，已发布到 GitHub Packages：`@xiangsam/dsh-loopx-plugin`。
 历史上的预构建 tarball 是 **0.1.1-beta.4**。
 如果要安装和 `package.json` 一致的源码，请在本仓库根目录运行 `./install.sh`。
 
@@ -102,7 +102,7 @@ npm login --registry=https://npm.pkg.github.com
 然后安装：
 
 ```bash
-dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.2"
+dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.3"
 ```
 
 ### 预构建包（历史 tarball）

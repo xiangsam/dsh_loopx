@@ -14,7 +14,7 @@ Chinese: [README.zh.md](README.zh.md).
 How GoalBar attaches: [docs/session-goal-surface.md](docs/session-goal-surface.md).
 Design rationale (model + single-agent rule): [docs/design-philosophy.md](docs/design-philosophy.md).
 
-Current version: **0.1.2**, published to GitHub Packages as
+Current version: **0.1.3**, published to GitHub Packages as
 `@xiangsam/dsh-loopx-plugin`. The historical prebuilt tarball is
 **0.1.1-beta.4**. Install this checkout with `./install.sh` if you want the
 source that matches `package.json`.
@@ -113,7 +113,7 @@ npm login --registry=https://npm.pkg.github.com
 Then install:
 
 ```bash
-dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.2"
+dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.3"
 ```
 
 ### Prebuilt release (historical tarball)
