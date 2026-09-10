@@ -10,7 +10,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const dshBin = process.env.DSH_BIN || join(packageRoot, 'node_modules', '.bin', 'dsh')
-const packageId = 'dsh-loopx-plugin'
+const packageId = '@xiangsam/dsh-loopx-plugin'
+
+/** Profile dumps YAML-quote scoped module names (`name: '@scope/pkg'`). */
+function unquoteDumpName(value) {
+  return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1) : value
+}
+
+function dumpHasModule(dump, name) {
+  return dump.includes(`name: ${name}`) || dump.includes(`name: '${name}'`)
+}
 const rows = [
   ['loopx-goalbar', packageId],
   ['loopx-init-command', `${packageId}/init-command`],
@@ -84,13 +93,14 @@ function assertConfig(dump) {
   const packageNames = dump
     .split(/\r?\n/u)
     .map(line => line.match(/^\s*name:\s+(\S+)\s*$/u)?.[1])
+    .map(name => (name === undefined ? undefined : unquoteDumpName(name)))
     .filter(name => name === packageId || name?.startsWith(`${packageId}/`))
   assert.deepEqual(packageNames, rows.map(([, module]) => module))
   let previous = -1
   for (const [id, module] of rows) {
     const position = dump.indexOf(`id: ${id}`)
     assert(position > previous, `missing or unordered ${id}`)
-    assert(dump.includes(`name: ${module}`), `missing ${module}`)
+    assert(dumpHasModule(dump, module), `missing ${module}`)
     previous = position
   }
 }
@@ -152,15 +162,15 @@ async function assertClientDiscovery(installed, manifest) {
   assert.match(registry.table.get(packageId)?.entry.rev ?? '', /^[0-9a-f]{12}$/u)
   const client = await readFile(join(installed, 'lib', 'client.js'), 'utf8')
   assert(client.startsWith('window.__ModuleLoader__.load({'))
-  assert(client.includes('id: "dsh-loopx-plugin"'))
+  assert(client.includes(`id: "${packageId}"`))
 }
 
 async function exerciseInstalled(installed) {
   const requireFromPlugin = createRequire(join(installed, 'package.json'))
   const [hostModule, initModule, driverModule] = await Promise.all([
     import(pathToFileURL(requireFromPlugin.resolve(packageId)).href),
-    import(pathToFileURL(requireFromPlugin.resolve('dsh-loopx-plugin/init-command')).href),
-    import(pathToFileURL(requireFromPlugin.resolve('dsh-loopx-plugin/driver')).href),
+    import(pathToFileURL(requireFromPlugin.resolve(`${packageId}/init-command`)).href),
+    import(pathToFileURL(requireFromPlugin.resolve(`${packageId}/driver`)).href),
   ])
   assert.equal(hostModule.name, packageId)
   assert.deepEqual(hostModule.inject, ['agents', 'connection', 'loopxBootstrap'])
@@ -221,7 +231,8 @@ async function exerciseInstalled(installed) {
       }
     },
   })
-  assert.deepEqual([...commands.keys()], ['loopx-init'])
+  // The init entry owns the repair command plus the LoopX task launcher.
+  assert.deepEqual([...commands.keys()], ['loopx-init', 'loopx-add'])
   assert.deepEqual(services.get('loopxBootstrap'), { state: 'ready' })
   assert.equal(initWarnings.length, 0)
   assert.equal(initCalls.filter(args => args.includes('--install')).length, 1)
@@ -252,11 +263,11 @@ async function exerciseInstalled(installed) {
   assert.equal(followups[0].role, 'user')
   assert.deepEqual(followups[0].source, {
     kind: 'plugin',
-    plugin: 'dsh-loopx-plugin/init-command',
+    plugin: `${packageId}/init-command`,
   })
   assert.notDeepEqual(followups[0].source, {
     kind: 'plugin',
-    plugin: 'dsh-loopx-plugin/driver',
+    plugin: `${packageId}/driver`,
   })
   assert.equal(typeof driverModule.LoopXContinuationDriver, 'function')
   assert.equal(driverModule.inject.join(','), 'agents,loopxBootstrap')
@@ -332,12 +343,12 @@ async function main() {
       ], env)
       const dump = run(dshBin, ['--profile', 'web', '--dump-config'], env)
       assertConfig(dump)
-      const installed = await realpath(join(home, 'profiles', 'web', 'node_modules', 'dsh-loopx-plugin'))
+      const installed = await realpath(join(home, 'profiles', 'web', 'node_modules', ...packageId.split('/')))
       const manifest = JSON.parse(await readFile(join(installed, 'package.json'), 'utf8'))
-      assert.equal(manifest.name, 'dsh-loopx-plugin')
+      assert.equal(manifest.name, packageId)
       await assertClientDiscovery(installed, manifest)
       await exerciseInstalled(installed)
-      run(dshBin, ['plugin', '--profile', 'web', 'remove', 'dsh-loopx-plugin'], env)
+      run(dshBin, ['plugin', '--profile', 'web', 'remove', packageId], env)
       const removed = run(dshBin, ['--profile', 'web', '--dump-config'], env)
       for (const [id] of rows) assert(!removed.includes(`id: ${id}`), `remove retained ${id}`)
     } finally {

@@ -1,7 +1,11 @@
 {
-  "name": "dsh-loopx-plugin",
+  "name": "@xiangsam/dsh-loopx-plugin",
   "version": "0.1.1-beta.6",
   "description": "LoopX CLI bootstrap, same-session driver, and Session GoalBar for DeepSeek Harness",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiangsam/dsh_loopx.git"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",
@@ -110,6 +114,7 @@
   },
   "license": "Apache-2.0",
   "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
     "access": "public"
   }
 }

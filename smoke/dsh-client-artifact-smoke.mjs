@@ -11,7 +11,16 @@ import vm from 'node:vm'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const dshBin = process.env.DSH_BIN || join(packageRoot, 'node_modules', '.bin', 'dsh')
-const packageId = 'dsh-loopx-plugin'
+const packageId = '@xiangsam/dsh-loopx-plugin'
+
+/** Profile dumps YAML-quote scoped module names (`name: '@scope/pkg'`). */
+function unquoteDumpName(value) {
+  return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1) : value
+}
+
+function dumpHasModule(dump, name) {
+  return dump.includes(`name: ${name}`) || dump.includes(`name: '${name}'`)
+}
 const rows = [
   ['loopx-goalbar', packageId],
   ['loopx-init-command', `${packageId}/init-command`],
@@ -101,13 +110,14 @@ function assertConfig(dump) {
   const names = dump
     .split(/\r?\n/u)
     .map(line => line.match(/^\s*name:\s+(\S+)\s*$/u)?.[1])
+    .map(name => (name === undefined ? undefined : unquoteDumpName(name)))
     .filter(name => name?.startsWith(packageId))
   assert.deepEqual(names, rows.map(([, name]) => name))
   let previous = -1
   for (const [id, name] of rows) {
     const position = dump.indexOf(`id: ${id}`)
     assert(position > previous, `missing or unordered ${id}`)
-    assert(dump.includes(`name: ${name}`), `missing ${name}`)
+    assert(dumpHasModule(dump, name), `missing ${name}`)
     previous = position
   }
 }
@@ -316,7 +326,7 @@ function createClientApplyHarness() {
 async function assertClientArtifact(root) {
   const source = await readFile(join(root, 'lib', 'client.js'), 'utf8')
   assert(source.startsWith('window.__ModuleLoader__.load({'))
-  assert(source.includes('id: "dsh-loopx-plugin"'))
+  assert(source.includes(`id: "${packageId}"`))
   assert(!/^\s*(?:import|export)\s/mu.test(source), 'client artifact contains bare ESM syntax')
   assert(!/sourceMappingURL|\.(?:ts|tsx)\.map/iu.test(source), 'client artifact contains a source map')
   assert(!/(?:^|["'])node:/mu.test(source), 'client artifact contains a Node builtin')

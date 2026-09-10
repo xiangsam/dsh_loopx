@@ -7,7 +7,7 @@ import { goalBarCoordinator } from './goalbar/events.ts'
 import { createGoalBarService } from './goalbar/service.ts'
 import { resolvePluginLoopXCommand } from './managed-runtime.ts'
 
-export const name = 'dsh-loopx-plugin'
+export const name = '@xiangsam/dsh-loopx-plugin'
 export const inject = ['agents', 'connection', 'loopxBootstrap']
 
 /** Package-root Host plugin: one GoalBar service, never a second Driver. */

@@ -21,7 +21,7 @@ import type { LoopXInitOptions } from '../src/init-command.ts'
 import { resolvePluginLoopXCommand } from '../src/managed-runtime.ts'
 
 const hostSurface = 'deepseek-harness-native'
-const initSource = 'dsh-loopx-plugin/init-command'
+const initSource = '@xiangsam/dsh-loopx-plugin/init-command'
 const packagedSkillIds = [
   'loopx-project',
   'loopx-pr-program',
@@ -798,7 +798,7 @@ describe('/loopx-init followups', () => {
       expect(message.source).toEqual({ kind: 'plugin', plugin: initSource })
       expect(message.source).not.toEqual({
         kind: 'plugin',
-        plugin: 'dsh-loopx-plugin/driver',
+        plugin: '@xiangsam/dsh-loopx-plugin/driver',
       })
       expect(messageText(message).length).toBeLessThanOrEqual(800)
       expect(messageText(message)).toContain('Do not call tools')

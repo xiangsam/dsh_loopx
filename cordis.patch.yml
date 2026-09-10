@@ -2,13 +2,13 @@
 - insert:
     # The package-root Host row is also the discovery anchor for dsh.client.
     - id: loopx-goalbar
-      name: dsh-loopx-plugin
+      name: '@xiangsam/dsh-loopx-plugin'
 
     - id: loopx-init-command
-      name: dsh-loopx-plugin/init-command
+      name: '@xiangsam/dsh-loopx-plugin/init-command'
 
     - id: loopx-driver
-      name: dsh-loopx-plugin/driver
+      name: '@xiangsam/dsh-loopx-plugin/driver'
 
 # The browser must not advertise readiness while first-run skill bootstrap is
 # still in flight. A safe bootstrap failure also publishes the service, so DSH

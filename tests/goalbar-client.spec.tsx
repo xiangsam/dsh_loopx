@@ -1027,7 +1027,7 @@ describe('GoalBar Connection and registration boundaries', () => {
     expect(injected).not.toHaveProperty('remote')
 
     const owned = document.createElement('style')
-    owned.dataset.plugin = 'dsh-loopx-plugin'
+    owned.dataset.plugin = '@xiangsam/dsh-loopx-plugin'
     const lookalike = document.createElement('style')
     lookalike.dataset.plugin = 'dsh-loopx-plugin-extra'
     document.head.append(owned, lookalike)
@@ -1038,7 +1038,7 @@ describe('GoalBar Connection and registration boundaries', () => {
 
   it('claims the CSS disposer before a later apply step can fail', () => {
     const owned = document.createElement('style')
-    owned.dataset.plugin = 'dsh-loopx-plugin'
+    owned.dataset.plugin = '@xiangsam/dsh-loopx-plugin'
     document.head.appendChild(owned)
     let cssDispose: (() => void) | undefined
     const order: string[] = []

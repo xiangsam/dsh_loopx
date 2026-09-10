@@ -569,11 +569,11 @@ describe('same-session LoopX driver', () => {
       sessionEvent('user/message', userMessage('please run loopx')),
       sessionEvent('user/message', {
         ...userMessage('LoopX initialization finished.'),
-        source: { kind: 'plugin', plugin: 'dsh-loopx-plugin/init-command' },
+        source: { kind: 'plugin', plugin: '@xiangsam/dsh-loopx-plugin/init-command' },
       }),
       sessionEvent('user/message', {
         ...userMessage('Continue through LoopX.'),
-        source: { kind: 'plugin', plugin: 'dsh-loopx-plugin/driver' },
+        source: { kind: 'plugin', plugin: '@xiangsam/dsh-loopx-plugin/driver' },
       }),
       modelSkillCallEvent('malformed', '{not-json'),
       modelSkillResultEvent('malformed'),

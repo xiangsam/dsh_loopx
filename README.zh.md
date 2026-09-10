@@ -1,6 +1,6 @@
 # DeepSeek Harness 上的 LoopX 插件
 
-`dsh-loopx-plugin` 是把 [LoopX](https://github.com/huangruiteng/loopx) 接到
+`@xiangsam/dsh-loopx-plugin` 是把 [LoopX](https://github.com/huangruiteng/loopx) 接到
 DeepSeek Harness（DSH）的插件。它不替代 LoopX。
 
 装好之后，在**要推进工作的那条对话**里用 `/loopx <任务>` 启动。这是按会话
@@ -62,7 +62,22 @@ LoopX skills，并直接调用 LoopX CLI。
 
 ## 安装
 
-### 预构建包（已发布的 tarball）
+### GitHub Packages（npm registry）
+
+包发布在 GitHub Packages 上，作用域为 `@xiangsam`。GitHub Packages 的
+安装需要认证，先在本机登录一次（password 填带 `read:packages` 的 PAT）：
+
+```bash
+npm login --registry=https://npm.pkg.github.com
+```
+
+然后安装：
+
+```bash
+dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.1-beta.6"
+```
+
+### 预构建包（历史 tarball）
 
 ```bash
 dsh plugin --profile web add \
@@ -166,7 +181,7 @@ Driver 按 Session 生效，不是按插件、进程、Agent、Goal 或项目生
 从 web profile 移除插件，然后重启 DSH：
 
 ```bash
-dsh plugin --profile web remove dsh-loopx-plugin
+dsh plugin --profile web remove @xiangsam/dsh-loopx-plugin
 ```
 
 这会去掉 GoalBar、Driver 和 `/loopx-init`，但**不会**删除 LoopX、它的
@@ -193,7 +208,7 @@ test -f "$DSH_LOOPX_RUNTIME/loopx_cli.py" && rm -rf -- "$DSH_LOOPX_RUNTIME"
 
 ```bash
 RETAINED_PREVIOUS_DSH_LOOPX_TARBALL=/absolute/path/to/retained/previous-dsh-loopx-plugin.tgz
-dsh plugin --profile web remove dsh-loopx-plugin
+dsh plugin --profile web remove @xiangsam/dsh-loopx-plugin
 dsh plugin --profile web add "$RETAINED_PREVIOUS_DSH_LOOPX_TARBALL" --ignore-scripts
 dsh --profile web --dump-config
 ```

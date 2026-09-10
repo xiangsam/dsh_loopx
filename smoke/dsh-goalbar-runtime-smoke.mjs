@@ -21,8 +21,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const packageId = 'dsh-loopx-plugin'
+const packageId = '@xiangsam/dsh-loopx-plugin'
 const dshBin = process.env.DSH_BIN || join(packageRoot, 'node_modules', '.bin', 'dsh')
+
+/** Profile dumps YAML-quote scoped module names (`name: '@scope/pkg'`). */
+function dumpHasModule(dump, name) {
+  return dump.includes(`name: ${name}`) || dump.includes(`name: '${name}'`)
+}
 const sessionId = 'runtime-session'
 const goalId = 'runtime-goal'
 const loopxAgentId = 'runtime-agent'
@@ -875,7 +880,7 @@ async function exerciseRealDshWeb(home, env, cliLog) {
     assert(bootText, 'real DSH index omitted the boot manifest')
     const boot = JSON.parse(bootText)
     const row = boot.entries.find(entry => entry.id === packageId)
-    assert(row, 'real DSH boot graph omitted dsh-loopx-plugin')
+    assert(row, `real DSH boot graph omitted ${packageId}`)
     assert.deepEqual(row.inject, [
       '@deepseek-ai/dsh-client-connection',
       '@deepseek-ai/dsh-client-locale',
@@ -887,7 +892,7 @@ async function exerciseRealDshWeb(home, env, cliLog) {
     })
     assert.equal(bundle.status, 200)
     const clientSource = await bundle.text()
-    assert(clientSource.includes('id: "dsh-loopx-plugin"'))
+    assert(clientSource.includes(`id: "${packageId}"`))
     await materializeServedClient(clientSource)
 
     const sessionId = 'loopx-bootstrap-readback'
@@ -1019,7 +1024,7 @@ esac
     ]) {
       const row = installedDump.indexOf(`id: ${id}`)
       assert(
-        row > previousRow && installedDump.includes(`name: ${name}`),
+        row > previousRow && dumpHasModule(installedDump, name),
         `missing or unordered ${id}`,
       )
       previousRow = row

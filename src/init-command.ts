@@ -32,7 +32,7 @@ export const inject = ['commands']
 
 const HOST_SURFACE = 'deepseek-harness-native'
 const WORKFLOW_SCHEMA = 'loopx_workflow_skill_install_v0'
-const INIT_SOURCE_ID = 'dsh-loopx-plugin/init-command'
+const INIT_SOURCE_ID = '@xiangsam/dsh-loopx-plugin/init-command'
 const MAX_FOLLOWUP_TEXT_CHARS = 800
 const PYTHON_VERSION_PROBE = 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)'
 const PIP_VERSION_ARGS = Object.freeze(['-m', 'pip', '--version'])

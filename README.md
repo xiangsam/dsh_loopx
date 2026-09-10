@@ -1,6 +1,6 @@
 # LoopX for DeepSeek Harness
 
-`dsh-loopx-plugin` is the DeepSeek Harness (DSH) plugin that connects a project
+`@xiangsam/dsh-loopx-plugin` is the DeepSeek Harness (DSH) plugin that connects a project
 to [LoopX](https://github.com/huangruiteng/loopx). It does not replace LoopX.
 
 After it is installed, start durable LoopX work with `/loopx <task>` in the
@@ -71,7 +71,23 @@ older releases).
 
 ## Install
 
-### Prebuilt release (published tarball)
+### GitHub Packages (npm registry)
+
+The package is published to GitHub Packages under the `@xiangsam` scope.
+Installing from GitHub Packages requires authentication, so log in once
+(password: a PAT with `read:packages`):
+
+```bash
+npm login --registry=https://npm.pkg.github.com
+```
+
+Then install:
+
+```bash
+dsh plugin --profile web add "@xiangsam/dsh-loopx-plugin@0.1.1-beta.6"
+```
+
+### Prebuilt release (historical tarball)
 
 ```bash
 dsh plugin --profile web add \
@@ -181,7 +197,7 @@ Replacing or clearing a Session starts from that Session's new history.
 Remove the plugin from the web profile, then restart DSH:
 
 ```bash
-dsh plugin --profile web remove dsh-loopx-plugin
+dsh plugin --profile web remove @xiangsam/dsh-loopx-plugin
 ```
 
 This removes the GoalBar, Driver, and `/loopx-init`. It does **not** remove
@@ -210,7 +226,7 @@ previously retained tarball:
 
 ```bash
 RETAINED_PREVIOUS_DSH_LOOPX_TARBALL=/absolute/path/to/retained/previous-dsh-loopx-plugin.tgz
-dsh plugin --profile web remove dsh-loopx-plugin
+dsh plugin --profile web remove @xiangsam/dsh-loopx-plugin
 dsh plugin --profile web add "$RETAINED_PREVIOUS_DSH_LOOPX_TARBALL" --ignore-scripts
 dsh --profile web --dump-config
 ```

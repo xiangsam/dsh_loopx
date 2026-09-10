@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { transform } from 'lightningcss'
 import { defineConfig } from 'tsdown'
 
-const PACKAGE_ID = 'dsh-loopx-plugin'
+const PACKAGE_ID = '@xiangsam/dsh-loopx-plugin'
 const PACKAGE_ROOT = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_OUTPUT_MARKER = `${sep}build-temp${sep}client${sep}`
 const CSS_VIRTUAL_PREFIX = '\0loopx-css:'
@@ -39,7 +39,7 @@ function sourceAssetPath(source: string, importer: string): string {
 function packageRelative(file: string): string {
   const path = relative(PACKAGE_ROOT, file)
   if (path === '..' || path.startsWith(`..${sep}`)) {
-    throw new Error('client CSS must stay inside dsh-loopx-plugin')
+    throw new Error('client CSS must stay inside @xiangsam/dsh-loopx-plugin')
   }
   return path.split(sep).join('/')
 }

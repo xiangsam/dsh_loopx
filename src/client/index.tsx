@@ -14,7 +14,7 @@ import {
 } from './locale.ts'
 import { createGoalBarRpc } from './rpc.ts'
 
-const PACKAGE_ID = 'dsh-loopx-plugin'
+const PACKAGE_ID = '@xiangsam/dsh-loopx-plugin'
 
 /** Cordis service names required before the materialized Client plugin applies. */
 export const inject = ['connection', 'locale', 'slots'] as const

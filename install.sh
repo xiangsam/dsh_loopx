@@ -4,7 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PACKAGE_JSON="$SCRIPT_DIR/package.json"
 OUTPUT_DIR="$SCRIPT_DIR/output"
-PACKAGE_NAME="dsh-loopx-plugin"
+PACKAGE_NAME="@xiangsam/dsh-loopx-plugin"
+# Local artifact basename stays the historical one so existing links keep
+# resolving; the published identity is the scoped PACKAGE_NAME above.
+PACKAGE_ARTIFACT_NAME="dsh-loopx-plugin"
+# Pre-scope name: removed on install so an upgrade cannot leave both rows.
+LEGACY_PACKAGE_NAME="dsh-loopx-plugin"
 PROFILE_NAME="web"
 DRY_RUN=0
 
@@ -84,10 +89,10 @@ PACKAGE_VERSION="$(
   node -e '
     const fs = require("node:fs")
     const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
-    if (manifest.name !== "dsh-loopx-plugin") throw new TypeError("unexpected package name")
+    if (manifest.name !== process.argv[2]) throw new TypeError("unexpected package name")
     if (typeof manifest.version !== "string" || !manifest.version) throw new TypeError("missing version")
     process.stdout.write(manifest.version)
-  ' "$PACKAGE_JSON"
+  ' "$PACKAGE_JSON" "$PACKAGE_NAME"
 )"
 [[ "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]] || {
   echo "install: invalid package version: $PACKAGE_VERSION" >&2
@@ -123,7 +128,7 @@ if [[ "$python_ok" -eq 0 ]]; then
   warn "the LoopX CLI is installed at DSH start and needs Python 3.11+ with pip."
 fi
 
-tarball="$OUTPUT_DIR/$PACKAGE_NAME-$PACKAGE_VERSION.tgz"
+tarball="$OUTPUT_DIR/$PACKAGE_ARTIFACT_NAME-$PACKAGE_VERSION.tgz"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   cat <<EOF
@@ -151,8 +156,10 @@ pnpm --dir "$SCRIPT_DIR" pack --out "$tarball"
 step "installing into the DSH $PROFILE_NAME profile"
 # Remove any prior install of the same package first. `dsh plugin add` skips
 # re-installing when the version is unchanged, so a same-version source rebuild
-# would otherwise leave the stale artifact in place.
+# would otherwise leave the stale artifact in place. The pre-scope name is
+# removed too so an upgrade never leaves two rows behind.
 "$dsh_bin" plugin --profile "$PROFILE_NAME" remove "$PACKAGE_NAME" >/dev/null 2>&1 || true
+"$dsh_bin" plugin --profile "$PROFILE_NAME" remove "$LEGACY_PACKAGE_NAME" >/dev/null 2>&1 || true
 "$dsh_bin" plugin --profile "$PROFILE_NAME" add "$tarball" --ignore-scripts
 profile_dump="$("$dsh_bin" --profile "$PROFILE_NAME" --dump-config)" || {
   echo "install: DSH profile $PROFILE_NAME could not be read back" >&2
@@ -160,18 +167,25 @@ profile_dump="$("$dsh_bin" --profile "$PROFILE_NAME" --dump-config)" || {
 }
 
 step "verifying the profile rows"
-printf '%s' "$profile_dump" | node -e '
+printf '%s' "$profile_dump" | PACKAGE_NAME="$PACKAGE_NAME" node -e '
   const fs = require("node:fs")
   const dump = fs.readFileSync(0, "utf8")
+  const quote = String.fromCharCode(39)
+  const packageName = process.env.PACKAGE_NAME
   const rows = [
-    ["loopx-goalbar", "dsh-loopx-plugin"],
-    ["loopx-init-command", "dsh-loopx-plugin/init-command"],
-    ["loopx-driver", "dsh-loopx-plugin/driver"],
+    ["loopx-goalbar", packageName],
+    ["loopx-init-command", `${packageName}/init-command`],
+    ["loopx-driver", `${packageName}/driver`],
   ]
+  // Scoped names are YAML-quoted (`name: @scope/pkg`); compare the raw value.
+  const unquote = value => (
+    value.startsWith(quote) && value.endsWith(quote) ? value.slice(1, -1) : value
+  )
   const packageNames = dump
     .split(/\r?\n/u)
     .map(line => line.match(/^\s*name:\s+(\S+)\s*$/u)?.[1])
-    .filter(name => name === "dsh-loopx-plugin" || name?.startsWith("dsh-loopx-plugin/"))
+    .map(name => (name === undefined ? undefined : unquote(name)))
+    .filter(name => name === packageName || name?.startsWith(`${packageName}/`))
   const expectedNames = rows.map(([, name]) => name)
   if (JSON.stringify(packageNames) !== JSON.stringify(expectedNames)) {
     throw new Error(`unexpected package rows: ${packageNames.join(",")}`)
@@ -180,7 +194,10 @@ printf '%s' "$profile_dump" | node -e '
   for (const [id, name] of rows) {
     const position = dump.indexOf(`id: ${id}`)
     if (position <= previous) throw new Error(`missing or unordered row ${id}`)
-    if (!dump.includes(`name: ${name}`)) throw new Error(`missing module ${name}`)
+    const quoted = `${quote}${name}${quote}`
+    if (!dump.includes(`name: ${name}`) && !dump.includes(`name: ${quoted}`)) {
+      throw new Error(`missing module ${name}`)
+    }
     previous = position
   }
 ' || {
