@@ -62,13 +62,41 @@ it writes an isolated copy under `$DSH_AGENTS_HOME/runtime/dsh-loopx-plugin`
 (default `~/.agents/runtime/dsh-loopx-plugin`) and never mutates the system
 Python environment. The published plugin requires **LoopX 0.5.4 or newer**.
 
-**DSH compatibility**: verified against **0.1.5-alpha.2** and 0.1.1-rc.x.
+**DSH compatibility**
+
+| dsh release | Status |
+| --- | --- |
+| `0.1.5-alpha.2` | **Verified** — real profile boot, GoalBar RPC, runtime smoke |
+| `0.1.1-rc.2` | **Verified** — repo devDependency, profile + runtime smokes |
+| other `0.1.x` | Supported window (`>=0.1.1-rc.1 <0.2.0-0`), untested |
+| anything else | Unsupported |
+
+The host plugin reads the running dsh version at boot and logs an error when
+it falls outside that window; it still boots, so the message stays readable.
+The same declaration ships in the package manifest under
+`dsh.compatibility`.
+
 In 0.1.5-alpha.2 `dsh-client-connection` no longer injects `webServer` at the
 module level (it injects `credentials` instead), while
 `connection.rpc.handle()` lands its channel route on the connection plugin's
 own fiber; this plugin therefore restores `inject: [webRuntime, webServer]`
 on the `connection` loader row in `cordis.patch.yml` (a harmless duplicate on
 older releases).
+
+## Release
+
+Bump `version` in `package.json`, commit, then tag and push:
+
+```bash
+git tag "v$(node -p "require('./package.json').version")"
+git push origin main --tags
+```
+
+`.github/workflows/publish.yml` installs the workspace, typechecks, runs the
+test suite, verifies the tag matches `package.json`, and publishes to GitHub
+Packages with the workflow's `GITHUB_TOKEN` (prerelease versions are published
+under their prerelease tag). Dispatch it manually with `dry_run` enabled to
+validate without publishing.
 
 ## Install
 

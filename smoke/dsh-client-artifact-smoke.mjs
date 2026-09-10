@@ -53,6 +53,7 @@ const packedStaticEntries = new Set([
   'package/lib/index.js',
   'package/lib/init-command.js',
   'package/lib/types/cli.d.ts',
+  'package/lib/types/compat.d.ts',
   'package/lib/types/client/LoopXBoardView.d.ts',
   'package/lib/types/client/LoopXGoalBar.d.ts',
   'package/lib/types/client/index.d.ts',

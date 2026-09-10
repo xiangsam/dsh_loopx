@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { warnOnUnsupportedDsh } from './compat.ts'
 import {
   registerGoalBarConnectionRpc,
 } from './goalbar/connection-rpc.ts'
@@ -12,6 +13,7 @@ export const inject = ['agents', 'connection', 'loopxBootstrap']
 
 /** Package-root Host plugin: one GoalBar service, never a second Driver. */
 export function apply(ctx: Context): void {
+  warnOnUnsupportedDsh(ctx)
   ctx.effect(() => {
     const service = createGoalBarService({
       getAgent: sessionId => ctx.agents.get(sessionId as Agent['id']),

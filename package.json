@@ -1,7 +1,7 @@
 {
   "name": "@xiangsam/dsh-loopx-plugin",
   "version": "0.1.2",
-  "description": "LoopX CLI bootstrap, same-session driver, and Session GoalBar for DeepSeek Harness",
+  "description": "LoopX CLI bootstrap, same-session driver, and Session GoalBar for DeepSeek Harness (dsh 0.1.x; verified 0.1.1-rc.2 and 0.1.5-alpha.2)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xiangsam/dsh_loopx.git"
@@ -64,8 +64,23 @@
         "@deepseek-ai/dsh-client-ui-conversation"
       ],
       "platform": "web"
+    },
+    "compatibility": {
+      "tested": [
+        "0.1.1-rc.2",
+        "0.1.5-alpha.2"
+      ],
+      "range": ">=0.1.1-rc.1 <0.2.0-0"
     }
   },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "loopx",
+    "goalbar",
+    "dsh-0.1.5-alpha.2"
+  ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh": ">=0.1.0-rc.7 <0.1.1 || >=0.1.1-rc.1 <0.2.0-0 || >=0.1.5-alpha.2 <0.1.6",

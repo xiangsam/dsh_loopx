@@ -55,11 +55,38 @@ LoopX skills，并直接调用 LoopX CLI。
 `~/.agents/runtime/dsh-loopx-plugin`），不会改系统 Python。
 已发布插件要求 **LoopX 0.5.4 或更新**。
 
-**DSH 兼容性**：已验证 **0.1.5-alpha.2** 与 0.1.1-rc.x。0.1.5-alpha.2 的
+**DSH 兼容性**
+
+| dsh 版本 | 状态 |
+| --- | --- |
+| `0.1.5-alpha.2` | **已验证** — 真实 profile 启动、GoalBar RPC、runtime smoke |
+| `0.1.1-rc.2` | **已验证** — 仓库 devDependency，profile + runtime smoke |
+| 其它 `0.1.x` | 支持窗口（`>=0.1.1-rc.1 <0.2.0-0`），未测试 |
+| 其它版本 | 不支持 |
+
+插件会在启动时读取当前 dsh 版本，超出窗口时打印 error 级日志；但**不会**
+阻止启动，保证这条信息可读。同样的声明也写在包清单的 `dsh.compatibility`
+字段里。
+
+0.1.5-alpha.2 的
 `dsh-client-connection` 不再在模块级注入 `webServer`（改为 `credentials`），
 而 `connection.rpc.handle()` 会把通道路由落在 connection 自己的 fiber 上；
 本插件因此在 `cordis.patch.yml` 里给 `connection` 这一行 loader 恢复了
 `inject: [webRuntime, webServer]`（对旧版是无害冗余）。
+
+## 发布
+
+改 `package.json` 的 `version` 并提交后打 tag：
+
+```bash
+git tag "v$(node -p "require('./package.json').version")"
+git push origin main --tags
+```
+
+`.github/workflows/publish.yml` 会依次安装依赖、类型检查、跑测试、校验 tag 与
+`package.json` 一致，然后用 workflow 的 `GITHUB_TOKEN` 发布到 GitHub Packages
+（预发布版本按 prerelease 打 tag）。也可以在 Actions 页面手动触发并开启
+`dry_run`，只验证不发布。
 
 ## 安装
 
