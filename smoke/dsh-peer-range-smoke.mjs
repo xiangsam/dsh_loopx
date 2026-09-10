@@ -36,4 +36,16 @@ for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
   )
 }
 
+// The verified runtime baseline: as long as this revision claims dsh
+// 0.1.5-alpha.2 compatibility (README), its prerelease tuple must stay
+// explicitly listed in the peer window — npm semver otherwise excludes
+// every prerelease whose tuple no comparator carries.
+for (const runtimeBaseline of ['0.1.5-alpha.2']) {
+  const range = manifest.peerDependencies['@deepseek-ai/dsh']
+  assert(
+    supportsPrerelease(range, runtimeBaseline),
+    `runtime baseline ${runtimeBaseline} is excluded by dsh peer range ${range}`,
+  )
+}
+
 process.stdout.write('dsh-loopx peer range smoke passed\n')
