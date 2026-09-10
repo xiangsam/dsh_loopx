@@ -69,6 +69,7 @@ const packedStaticEntries = new Set([
 const packedHashedEntries = [
   ['managed runtime chunk', /^package\/lib\/managed-runtime-[A-Za-z0-9_-]{8}\.js$/u],
   ['Driver chunk', /^package\/lib\/driver-[A-Za-z0-9_-]{8}\.js$/u],
+  ['init-command chunk', /^package\/lib\/init-command-[A-Za-z0-9_-]{8}\.js$/u],
 ]
 
 function run(file, args, env = process.env) {
@@ -892,7 +893,9 @@ async function exerciseRealDshWeb(home, env, cliLog) {
     const sessionId = 'loopx-bootstrap-readback'
     const initializationLog = await readFile(cliLog, 'utf8').catch(() => '(no LoopX calls)')
     assert(
-      await stat(join(env.DSH_AGENTS_HOME, 'skills', 'loopx', 'SKILL.md'))
+      // DSH-scoped skills root: with DSH_HOME set the plugin installs skills
+      // under $DSH_HOME/skills (agents-home is only the DSH_HOME-less fallback).
+      await stat(join(env.DSH_HOME, 'skills', 'loopx', 'SKILL.md'))
         .then(() => true, () => false),
       `automatic initialization did not create the isolated loopx skill: ${initializationLog}\n${output.text}`,
     )
